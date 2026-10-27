@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icons } from './components/Icons';
 import { SandboxEnvironment } from './SandboxEnvironment';
+import { DisassemblyViewer } from './components/DisassemblyViewer';
+import { AssemblyEditor } from './components/AssemblyEditor';
+import { FileFeatureAnalysis } from './components/FileFeatureAnalysis';
+import { LicensingInfo } from './components/LicensingInfo';
 import { 
   Investigation, 
   saveInvestigation, 
@@ -21,7 +25,7 @@ import { analyzeBinary, isBinaryFile, BinaryAnalysisResult } from './utils/binar
 import { analyzeWithGhidra, GhidraAnalysisResult } from './utils/ghidraAnalyzer';
 import { generateReport, downloadReport, downloadFile } from './utils/reportGenerator';
 
-type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings';
+type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings' | 'licensing';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -167,6 +171,7 @@ export default function App() {
             { id: 'history', label: 'History', icon: <Icons.History />, count: investigations.length },
             { id: 'sandbox', label: 'Sandbox', icon: <Icons.Shield /> },
             { id: 'settings', label: 'Settings', icon: <Icons.Settings /> },
+            { id: 'licensing', label: 'Licensing', icon: <Icons.FileText /> },
           ].map((item) => (
             <button
               key={item.id}
@@ -232,6 +237,11 @@ export default function App() {
         )}
         {screen === 'sandbox' && <SandboxEnvironment targetPath="/sandbox" />}
         {screen === 'settings' && <SettingsScreen />}
+        {screen === 'licensing' && (
+          <div className="max-w-5xl mx-auto py-8 px-6">
+            <LicensingInfo />
+          </div>
+        )}
       </main>
     </div>
   );
@@ -328,11 +338,22 @@ function ResultsScreen({ investigation, onExport }: {
   investigation: Investigation;
   onExport: (inv: Investigation, format: 'markdown' | 'json' | 'html') => void;
 }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'disassembly' | 'assembly' | 'features' | 'evidence'>('overview');
+  
   if (!investigation.result) return null;
   const { result } = investigation;
 
+  // Prepare disassembly lines for the viewer
+  const disassemblyLines = investigation.ghidraAnalysis?.disassembly.map(d => ({
+    address: d.address,
+    bytes: d.bytes,
+    mnemonic: d.mnemonic,
+    operands: d.operands,
+    comment: d.comment,
+  })) || [];
+
   return (
-    <div className="max-w-5xl mx-auto py-8 px-6">
+    <div className="max-w-7xl mx-auto py-8 px-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Analysis Results</h2>
@@ -361,10 +382,39 @@ function ResultsScreen({ investigation, onExport }: {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Summary</h3>
-        <p className="text-gray-700 dark:text-gray-300">{result.summary}</p>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
+        {[
+          { id: 'overview', label: 'Overview' },
+          { id: 'disassembly', label: 'Disassembly', disabled: disassemblyLines.length === 0 },
+          { id: 'assembly', label: 'Assembly Editor' },
+          { id: 'features', label: 'Features', disabled: !investigation.binaryAnalysis && !investigation.ghidraAnalysis },
+          { id: 'evidence', label: `Evidence (${result.evidence.length})` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
+            disabled={tab.disabled}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab.disabled
+                ? 'border-transparent text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                : activeTab === tab.id
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Summary</h3>
+            <p className="text-gray-700 dark:text-gray-300">{result.summary}</p>
+          </div>
 
       {result.steps.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -558,6 +608,96 @@ function ResultsScreen({ investigation, onExport }: {
             </div>
           )}
         </div>
+      )}
+        </>
+      )}
+
+      {activeTab === 'disassembly' && disassemblyLines.length > 0 && (
+        <DisassemblyViewer lines={disassemblyLines} />
+      )}
+
+      {activeTab === 'assembly' && (
+        <AssemblyEditor />
+      )}
+
+      {activeTab === 'features' && (
+        <FileFeatureAnalysis 
+          binaryAnalysis={investigation.binaryAnalysis}
+          ghidraAnalysis={investigation.ghidraAnalysis}
+        />
+      )}
+
+      {activeTab === 'evidence' && (
+        <>
+          {result.steps.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Analysis Steps</h3>
+              <ol className="space-y-2">
+                {result.steps.map((step, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {result.evidence.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Evidence ({result.evidence.length})</h3>
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {result.evidence.map((ev, i) => (
+                  <div key={ev.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">E{i + 1}</span>
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">{ev.type}</span>
+                      <span className="text-xs text-gray-500">{Math.round(ev.confidence * 100)}% confidence</span>
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">{ev.description}</div>
+                    {ev.content && (
+                      <pre className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">{ev.content}</pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.recommendations.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Recommendations</h3>
+              <ul className="space-y-2">
+                {result.recommendations.map((rec, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="text-emerald-500">💡</span>
+                    {rec}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.risks.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 p-6">
+              <h3 className="font-semibold text-red-900 dark:text-red-300 mb-3">Risks Identified</h3>
+              <div className="space-y-3">
+                {result.risks.map((risk, i) => (
+                  <div key={i} className={`p-3 rounded-lg border-l-4 ${
+                    risk.level === 'critical' ? 'bg-red-50 dark:bg-red-900/10 border-red-500' :
+                    risk.level === 'high' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-500' :
+                    risk.level === 'medium' ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-500' :
+                    'bg-blue-50 dark:bg-blue-900/10 border-blue-500'
+                  }`}>
+                    <div className="font-semibold text-gray-900 dark:text-white mb-1">{risk.level.toUpperCase()} RISK</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">{risk.description}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400"><strong>Mitigation:</strong> {risk.mitigation}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
