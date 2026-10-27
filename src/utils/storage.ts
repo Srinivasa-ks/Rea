@@ -1,4 +1,6 @@
 // Real data persistence and state management
+import type { BinaryAnalysisResult } from './binaryAnalyzer';
+
 export interface Investigation {
   id: string;
   question: string;
@@ -10,6 +12,7 @@ export interface Investigation {
   result?: InvestigationResult;
   fileSize?: number;
   fileHash?: string;
+  binaryAnalysis?: BinaryAnalysisResult;
 }
 
 export interface InvestigationResult {

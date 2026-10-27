@@ -17,6 +17,7 @@ import {
   exportInvestigations,
 } from './utils/storage';
 import { analyzeCode, detectFileType, batchAnalyze } from './utils/analyzer';
+import { analyzeBinary, isBinaryFile, BinaryAnalysisResult } from './utils/binaryAnalyzer';
 import { generateReport, downloadReport, downloadFile } from './utils/reportGenerator';
 
 type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings' | 'compare' | 'native' | 'mcp' | 'architecture' | 'logs' | 'approvals';
@@ -103,9 +104,60 @@ export default function App() {
     setAnalysisProgress(0);
 
     try {
-      const content = await file.text();
-      const fileType = detectFileType(file.name);
-      const fileHash = calculateHash(content);
+      // Read file as ArrayBuffer first to detect binary
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const isBinary = isBinaryFile(uint8Array);
+      
+      let content: string;
+      let fileType: string;
+      let fileHash: string;
+      let result: any;
+      let binaryAnalysis: BinaryAnalysisResult | null = null;
+
+      if (isBinary) {
+        // Binary file analysis
+        fileType = 'binary';
+        fileHash = calculateHash(String.fromCharCode(...uint8Array.slice(0, 1000)));
+        
+        // Perform binary analysis
+        binaryAnalysis = await analyzeBinary(arrayBuffer, file.name);
+        
+        // Convert binary analysis to standard result format
+        result = {
+          summary: `Binary file analysis complete. Detected: ${binaryAnalysis.fileType}, Architecture: ${binaryAnalysis.architecture}, Entropy: ${binaryAnalysis.entropy.toFixed(2)} bits/byte. Extracted ${binaryAnalysis.strings.length} strings and found ${binaryAnalysis.sections.length} sections.`,
+          confidence: 0.95,
+          evidence: binaryAnalysis.evidence,
+          steps: [
+            'Detected binary file format',
+            `Identified file type: ${binaryAnalysis.fileType}`,
+            `Determined architecture: ${binaryAnalysis.architecture}`,
+            `Calculated entropy: ${binaryAnalysis.entropy.toFixed(2)} bits/byte`,
+            `Extracted ${binaryAnalysis.strings.length} strings`,
+            `Parsed ${binaryAnalysis.sections.length} sections`,
+            'Analyzed imports and exports',
+            'Assessed security risks',
+          ],
+          codeSnippets: [],
+          recommendations: [
+            'Verify file legitimacy with antivirus',
+            'Check extracted strings for sensitive information',
+            'Review imports for suspicious dependencies',
+            binaryAnalysis.entropy > 7.5 ? 'High entropy detected - verify file is not packed/encrypted' : 'Entropy is within normal range',
+          ],
+          risks: binaryAnalysis.risks,
+        };
+        
+        content = binaryAnalysis.hexDump;
+      } else {
+        // Text file analysis
+        content = await file.text();
+        fileType = detectFileType(file.name);
+        fileHash = calculateHash(content);
+        
+        // Perform code analysis
+        result = await analyzeCode(content, { question, fileType, depth });
+      }
 
       const investigation: RealInvestigation = {
         id: generateId(),
@@ -132,9 +184,6 @@ export default function App() {
         });
       }, 200);
 
-      // Perform analysis
-      const result = await analyzeCode(content, { question, fileType, depth });
-
       clearInterval(progressInterval);
       setAnalysisProgress(100);
 
@@ -143,6 +192,7 @@ export default function App() {
         status: 'completed',
         completedAt: new Date().toISOString(),
         result,
+        binaryAnalysis: binaryAnalysis || undefined,
       };
 
       saveInvestigation(completedInvestigation);
@@ -720,6 +770,136 @@ function ResultsScreen({ investigation, onExport }: {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Binary Analysis Results */}
+      {investigation.binaryAnalysis && (
+        <div className="mt-6 space-y-6">
+          {/* Binary File Info */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Binary File Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">File Type:</span>
+                <div className="font-mono text-gray-900 dark:text-white">{investigation.binaryAnalysis.fileType}</div>
+              </div>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Architecture:</span>
+                <div className="font-mono text-gray-900 dark:text-white">{investigation.binaryAnalysis.architecture}</div>
+              </div>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Entropy:</span>
+                <div className="font-mono text-gray-900 dark:text-white">{investigation.binaryAnalysis.entropy.toFixed(2)} bits/byte</div>
+              </div>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Sections:</span>
+                <div className="font-mono text-gray-900 dark:text-white">{investigation.binaryAnalysis.sections.length}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hex Dump */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Hex Dump (First 512 bytes)</h3>
+            <pre className="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+              {investigation.binaryAnalysis.hexDump}
+            </pre>
+          </div>
+
+          {/* Extracted Strings */}
+          {investigation.binaryAnalysis.strings.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Extracted Strings ({investigation.binaryAnalysis.strings.length})
+              </h3>
+              <div className="max-h-96 overflow-y-auto space-y-2">
+                {investigation.binaryAnalysis.strings.slice(0, 50).map((str, i) => (
+                  <div key={i} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                    <span className="text-xs text-gray-500 font-mono w-20">0x{str.offset.toString(16).padStart(8, '0')}</span>
+                    <span className="text-sm text-gray-900 dark:text-white font-mono flex-1 break-all">{str.value}</span>
+                    <span className="text-xs text-gray-500">{str.length} chars</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Binary Sections */}
+          {investigation.binaryAnalysis.sections.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Binary Sections</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 px-3 text-gray-600 dark:text-gray-400">Name</th>
+                      <th className="text-right py-2 px-3 text-gray-600 dark:text-gray-400">Virtual Size</th>
+                      <th className="text-right py-2 px-3 text-gray-600 dark:text-gray-400">Raw Size</th>
+                      <th className="text-left py-2 px-3 text-gray-600 dark:text-gray-400">Characteristics</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {investigation.binaryAnalysis.sections.map((section, i) => (
+                      <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                        <td className="py-2 px-3 font-mono text-gray-900 dark:text-white">{section.name}</td>
+                        <td className="py-2 px-3 text-right font-mono text-gray-700 dark:text-gray-300">{section.virtualSize}</td>
+                        <td className="py-2 px-3 text-right font-mono text-gray-700 dark:text-gray-300">{section.size}</td>
+                        <td className="py-2 px-3 text-gray-700 dark:text-gray-300">{section.characteristics.join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Imports */}
+          {investigation.binaryAnalysis.imports.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Imports ({investigation.binaryAnalysis.imports.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {investigation.binaryAnalysis.imports.map((imp, i) => (
+                  <span key={i} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-mono">
+                    {imp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Exports */}
+          {investigation.binaryAnalysis.exports.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Exports ({investigation.binaryAnalysis.exports.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {investigation.binaryAnalysis.exports.map((exp, i) => (
+                  <span key={i} className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-mono">
+                    {exp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Signatures */}
+          {investigation.binaryAnalysis.signatures.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Detected Signatures</h3>
+              <ul className="space-y-2">
+                {investigation.binaryAnalysis.signatures.map((sig, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="text-amber-500">⚠️</span>
+                    {sig}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
