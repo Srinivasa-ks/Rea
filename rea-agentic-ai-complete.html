@@ -115,6 +115,54 @@
 
     // Welcome Screen
     function WelcomeScreen({ onStart }) {
+      const [acknowledged, setAcknowledged] = useState(() => {
+        return localStorage.getItem('rea-acknowledged') === 'true';
+      });
+
+      const handleAcknowledge = () => {
+        localStorage.setItem('rea-acknowledged', 'true');
+        setAcknowledged(true);
+      };
+
+      // If already acknowledged, show the main welcome directly
+      if (acknowledged) {
+        return (
+          <div className="max-w-4xl mx-auto py-12 px-6">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white mb-6 shadow-lg">
+                <Icons.Cpu />
+              </div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">REA Agentic AI</h1>
+              <p className="text-xl text-gray-600 dark:text-gray-400">Reverse Engineer Anything — Locally, Safely, With Evidence</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <Card className="p-5">
+                <div className="text-indigo-500 mb-3"><Icons.Terminal /></div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">CLI</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Command line: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-xs">rea-agent investigate</code></p>
+              </Card>
+              <Card className="p-5">
+                <div className="text-indigo-500 mb-3"><Icons.Link /></div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">MCP Server</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">For Claude, Codex, Cursor & VS Code</p>
+              </Card>
+              <Card className="p-5">
+                <div className="text-indigo-500 mb-3"><Icons.Shield /></div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Desktop App</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Install and investigate in under 10 minutes</p>
+              </Card>
+            </div>
+            <div className="text-center">
+              <button onClick={onStart} className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-lg transition-colors">
+                <Icons.Play /> Start Investigation
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-3">Local-only • No telemetry • No cloud required</p>
+            </div>
+          </div>
+        );
+      }
+
+      // First-time: show the notice
       return (
         <div className="max-w-4xl mx-auto py-12 px-6">
           <div className="text-center mb-12">
@@ -127,34 +175,30 @@
           <Card className="p-6 mb-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">
             <div className="flex items-start gap-3">
               <Icons.AlertTriangle />
-              <div>
-                <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-1">Legal & Ethical Notice</h3>
-                <p className="text-sm text-amber-800 dark:text-amber-400">This tool is for authorized analysis only. You must own or have permission to analyze any target.</p>
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-2">Before You Begin</h3>
+                <p className="text-sm text-amber-800 dark:text-amber-400 mb-3">
+                  REA Agentic AI is a reverse engineering tool. By using it, you confirm that:
+                </p>
+                <ul className="text-sm text-amber-800 dark:text-amber-400 space-y-1 ml-4 list-disc">
+                  <li>You own or have permission to analyze the target</li>
+                  <li>Use is for legitimate purposes only (security research, education, interoperability)</li>
+                  <li>No malware creation, exploit development, or attacks on third parties</li>
+                </ul>
               </div>
             </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handleAcknowledge}
+                className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg text-sm transition-colors"
+              >
+                I Understand — Continue
+              </button>
+            </div>
           </Card>
-          <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <Card className="p-5">
-              <div className="text-indigo-500 mb-3"><Icons.Terminal /></div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">CLI</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Command line interface</p>
-            </Card>
-            <Card className="p-5">
-              <div className="text-indigo-500 mb-3"><Icons.Link /></div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">MCP Server</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Model Context Protocol</p>
-            </Card>
-            <Card className="p-5">
-              <div className="text-indigo-500 mb-3"><Icons.Shield /></div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Desktop App</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Windows application</p>
-            </Card>
-          </div>
-          <div className="text-center">
-            <button onClick={onStart} className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-lg transition-colors">
-              <Icons.Play /> Start Investigation
-            </button>
-          </div>
+          <p className="text-center text-xs text-gray-500 dark:text-gray-500">
+            This notice is shown once. You won't see it again.
+          </p>
         </div>
       );
     }
