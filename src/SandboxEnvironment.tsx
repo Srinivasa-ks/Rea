@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Icons } from './App';
+import { Icons } from './components/Icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type SandboxStatus = 'idle' | 'starting' | 'running' | 'paused' | 'stopping' | 'error';
