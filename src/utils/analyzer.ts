@@ -140,6 +140,101 @@ export async function analyzeCode(
     }
   }
   
+  // ALWAYS perform comprehensive analysis regardless of question
+  steps.push('Performing comprehensive code analysis...');
+  
+  // Extract all functions
+  const functionMatches = code.match(/(?:function|const|let|var)\s+(\w+)\s*(?:=|\()/g) || [];
+  functionMatches.forEach((match, i) => {
+    const funcName = match.replace(/(?:function|const|let|var)\s+/, '').replace(/\s*(?:=|\().*/, '');
+    const lineNum = code.substring(0, code.indexOf(match)).split('\n').length;
+    evidence.push({
+      id: `func_${Date.now()}_${i}`,
+      type: 'code',
+      description: `Function found: ${funcName}`,
+      location: `Line ${lineNum}`,
+      content: match,
+      confidence: 1.0,
+    });
+  });
+  
+  // Extract all variables
+  const varMatches = code.match(/(?:const|let|var)\s+(\w+)\s*=/g) || [];
+  varMatches.slice(0, 10).forEach((match, i) => {
+    const varName = match.replace(/(?:const|let|var)\s+/, '').replace(/\s*=.*/, '');
+    evidence.push({
+      id: `var_${Date.now()}_${i}`,
+      type: 'code',
+      description: `Variable declaration: ${varName}`,
+      location: 'Code analysis',
+      content: match,
+      confidence: 0.95,
+    });
+  });
+  
+  // Extract all imports
+  const importMatches = code.match(/import\s+.*from\s+['"][^'"]+['"]/g) || [];
+  importMatches.forEach((match, i) => {
+    evidence.push({
+      id: `import_${Date.now()}_${i}`,
+      type: 'dependency',
+      description: `Import statement`,
+      location: 'Module dependencies',
+      content: match,
+      confidence: 1.0,
+    });
+  });
+  
+  // Extract all exports
+  const exportMatches = code.match(/export\s+(?:default\s+)?(?:function|class|const|let|var)\s+\w+/g) || [];
+  exportMatches.forEach((match, i) => {
+    evidence.push({
+      id: `export_${Date.now()}_${i}`,
+      type: 'code',
+      description: `Export declaration`,
+      location: 'Module exports',
+      content: match,
+      confidence: 1.0,
+    });
+  });
+  
+  // Extract all strings
+  const stringMatches = code.match(/['"][^'"]{5,}['"]/g) || [];
+  stringMatches.slice(0, 15).forEach((match, i) => {
+    evidence.push({
+      id: `string_${Date.now()}_${i}`,
+      type: 'string',
+      description: `String literal found`,
+      location: 'Code analysis',
+      content: match,
+      confidence: 0.9,
+    });
+  });
+  
+  // Extract all comments
+  const commentMatches = code.match(/\/\/.*|\/\*[\s\S]*?\*\//g) || [];
+  commentMatches.slice(0, 10).forEach((match, i) => {
+    evidence.push({
+      id: `comment_${Date.now()}_${i}`,
+      type: 'code',
+      description: `Code comment`,
+      location: 'Documentation',
+      content: match.substring(0, 100),
+      confidence: 0.85,
+    });
+  });
+  
+  // Analyze code structure
+  const metrics = calculatePerformanceMetrics(code, lines);
+  evidence.push({
+    id: `metrics_${Date.now()}`,
+    type: 'pattern',
+    description: `Code metrics: ${metrics.linesOfCode} lines, ${metrics.functions} functions, ${metrics.classes} classes`,
+    location: 'Structure analysis',
+    content: JSON.stringify(metrics, null, 2),
+    confidence: 1.0,
+  });
+  
   // General code quality analysis
   steps.push('Performing general code quality analysis...');
   analyzeCodeQuality(code, lines, evidence, recommendations, risks);

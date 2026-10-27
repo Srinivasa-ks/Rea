@@ -18,6 +18,7 @@ import {
 } from './utils/storage';
 import { analyzeCode, detectFileType } from './utils/analyzer';
 import { analyzeBinary, isBinaryFile, BinaryAnalysisResult } from './utils/binaryAnalyzer';
+import { analyzeWithGhidra, GhidraAnalysisResult } from './utils/ghidraAnalyzer';
 import { generateReport, downloadReport, downloadFile } from './utils/reportGenerator';
 
 type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings';
@@ -52,28 +53,41 @@ export default function App() {
       
       let result: any;
       let binaryAnalysis: BinaryAnalysisResult | undefined;
+      let ghidraAnalysis: GhidraAnalysisResult | undefined;
 
       if (isBinary) {
+        // Use Ghidra-style analysis for binary files
+        ghidraAnalysis = await analyzeWithGhidra(arrayBuffer, file.name);
         binaryAnalysis = await analyzeBinary(arrayBuffer, file.name);
+        
         result = {
-          summary: `Binary analysis complete. Type: ${binaryAnalysis.fileType}, Architecture: ${binaryAnalysis.architecture}, Entropy: ${binaryAnalysis.entropy.toFixed(2)} bits/byte. Found ${binaryAnalysis.strings.length} strings and ${binaryAnalysis.sections.length} sections.`,
-          confidence: 0.95,
-          evidence: binaryAnalysis.evidence,
+          summary: `Ghidra-style analysis complete. Type: ${ghidraAnalysis.fileType}, Architecture: ${ghidraAnalysis.architecture}, Language: ${ghidraAnalysis.language}, Compiler: ${ghidraAnalysis.compiler}. Found ${ghidraAnalysis.functions.length} functions, ${ghidraAnalysis.strings.length} strings, ${ghidraAnalysis.imports.length} imports, and ${ghidraAnalysis.sections.length} sections.`,
+          confidence: ghidraAnalysis.confidence,
+          evidence: ghidraAnalysis.evidence,
           steps: [
-            'Detected binary file format',
-            `Identified: ${binaryAnalysis.fileType}`,
-            `Architecture: ${binaryAnalysis.architecture}`,
-            `Entropy: ${binaryAnalysis.entropy.toFixed(2)} bits/byte`,
-            `Extracted ${binaryAnalysis.strings.length} strings`,
-            `Parsed ${binaryAnalysis.sections.length} sections`,
+            'Initialized Ghidra-style analysis engine',
+            `Detected: ${ghidraAnalysis.fileType}`,
+            `Architecture: ${ghidraAnalysis.architecture}`,
+            `Language: ${ghidraAnalysis.language}`,
+            `Compiler: ${ghidraAnalysis.compiler}`,
+            `Parsed ${ghidraAnalysis.sections.length} sections`,
+            `Found ${ghidraAnalysis.entryPoints.length} entry points`,
+            `Analyzed ${ghidraAnalysis.functions.length} functions`,
+            `Extracted ${ghidraAnalysis.strings.length} strings`,
+            `Identified ${ghidraAnalysis.imports.length} imports`,
+            `Found ${ghidraAnalysis.exports.length} exports`,
+            `Generated ${ghidraAnalysis.disassembly.length} disassembly lines`,
+            `Analyzed ${ghidraAnalysis.xrefs.length} cross-references`,
           ],
           codeSnippets: [],
           recommendations: [
-            'Verify file legitimacy with antivirus',
-            'Review extracted strings for sensitive data',
-            'Check imports for suspicious dependencies',
+            'Review all functions for suspicious behavior',
+            'Check imports for known malicious libraries',
+            'Analyze strings for hardcoded credentials',
+            'Verify cross-references for unexpected calls',
+            'Review decompiled code for logic issues',
           ],
-          risks: binaryAnalysis.risks,
+          risks: ghidraAnalysis.risks,
         };
       } else {
         const content = await file.text();
@@ -93,6 +107,7 @@ export default function App() {
         fileHash: calculateHash(String.fromCharCode(...uint8Array.slice(0, 1000))),
         result,
         binaryAnalysis,
+        ghidraAnalysis,
       };
 
       saveInvestigation(investigation);
@@ -368,7 +383,7 @@ function ResultsScreen({ investigation, onExport }: {
       {result.evidence.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Evidence ({result.evidence.length})</h3>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
             {result.evidence.map((ev, i) => (
               <div key={ev.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
@@ -378,7 +393,7 @@ function ResultsScreen({ investigation, onExport }: {
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">{ev.description}</div>
                 {ev.content && (
-                  <pre className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">{ev.content}</pre>
+                  <pre className="bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap">{ev.content}</pre>
                 )}
               </div>
             ))}
@@ -448,6 +463,98 @@ function ResultsScreen({ investigation, onExport }: {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {investigation.ghidraAnalysis && (
+        <div className="mt-6 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-purple-200 dark:border-purple-800 p-6">
+            <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-3">🔧 Ghidra-Style Analysis</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div><span className="text-gray-600 dark:text-gray-400">Language:</span><div className="font-mono text-gray-900 dark:text-white">{investigation.ghidraAnalysis.language}</div></div>
+              <div><span className="text-gray-600 dark:text-gray-400">Compiler:</span><div className="font-mono text-gray-900 dark:text-white">{investigation.ghidraAnalysis.compiler}</div></div>
+              <div><span className="text-gray-600 dark:text-gray-400">Functions:</span><div className="font-mono text-gray-900 dark:text-white">{investigation.ghidraAnalysis.functions.length}</div></div>
+              <div><span className="text-gray-600 dark:text-gray-400">Analysis Time:</span><div className="font-mono text-gray-900 dark:text-white">{investigation.ghidraAnalysis.analysisTime}ms</div></div>
+            </div>
+          </div>
+
+          {investigation.ghidraAnalysis.functions.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Functions ({investigation.ghidraAnalysis.functions.length})</h3>
+              <div className="max-h-96 overflow-y-auto space-y-2">
+                {investigation.ghidraAnalysis.functions.map((func, i) => (
+                  <div key={i} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono font-bold text-purple-600 dark:text-purple-400">{func.name}</span>
+                      <span className="text-xs text-gray-500 font-mono">{func.address}</span>
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      Size: {func.size} bytes | Complexity: {func.complexity} | Returns: {func.returnType}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      Parameters: {func.parameters.join(', ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {investigation.ghidraAnalysis.sections.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Sections ({investigation.ghidraAnalysis.sections.length})</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 px-3 text-gray-600 dark:text-gray-400">Name</th>
+                      <th className="text-left py-2 px-3 text-gray-600 dark:text-gray-400">Type</th>
+                      <th className="text-right py-2 px-3 text-gray-600 dark:text-gray-400">Size</th>
+                      <th className="text-right py-2 px-3 text-gray-600 dark:text-gray-400">Entropy</th>
+                      <th className="text-left py-2 px-3 text-gray-600 dark:text-gray-400">Permissions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {investigation.ghidraAnalysis.sections.map((section, i) => (
+                      <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                        <td className="py-2 px-3 font-mono text-gray-900 dark:text-white">{section.name}</td>
+                        <td className="py-2 px-3 text-gray-700 dark:text-gray-300">{section.type}</td>
+                        <td className="py-2 px-3 text-right font-mono text-gray-700 dark:text-gray-300">{section.size}</td>
+                        <td className="py-2 px-3 text-right font-mono text-gray-700 dark:text-gray-300">{section.entropy.toFixed(2)}</td>
+                        <td className="py-2 px-3 font-mono text-gray-700 dark:text-gray-300">{section.permissions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {investigation.ghidraAnalysis.disassembly.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Disassembly ({investigation.ghidraAnalysis.disassembly.length} lines)</h3>
+              <div className="max-h-96 overflow-y-auto">
+                <pre className="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono">
+                  {investigation.ghidraAnalysis.disassembly.map((line, i) => (
+                    <div key={i} className="flex gap-4">
+                      <span className="text-gray-500">{line.address}</span>
+                      <span className="text-blue-400">{line.mnemonic}</span>
+                      <span className="text-yellow-400">{line.operands}</span>
+                    </div>
+                  ))}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {investigation.ghidraAnalysis.decompiledCode && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Decompiled Code</h3>
+              <pre className="bg-gray-900 text-cyan-400 rounded-lg p-4 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                {investigation.ghidraAnalysis.decompiledCode}
+              </pre>
             </div>
           )}
         </div>

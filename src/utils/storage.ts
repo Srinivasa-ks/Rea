@@ -1,6 +1,8 @@
 // Real data persistence and state management
 import type { BinaryAnalysisResult } from './binaryAnalyzer';
 
+import type { GhidraAnalysisResult } from './ghidraAnalyzer';
+
 export interface Investigation {
   id: string;
   question: string;
@@ -13,6 +15,7 @@ export interface Investigation {
   fileSize?: number;
   fileHash?: string;
   binaryAnalysis?: BinaryAnalysisResult;
+  ghidraAnalysis?: GhidraAnalysisResult;
 }
 
 export interface InvestigationResult {
