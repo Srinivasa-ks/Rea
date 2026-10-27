@@ -114,4 +114,5 @@ export type Screen =
   | 'settings'
   | 'mcp'
   | 'architecture'
-  | 'approvals';
+  | 'approvals'
+  | 'sandbox';
