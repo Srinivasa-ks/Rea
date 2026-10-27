@@ -5,6 +5,7 @@ import { DisassemblyViewer } from './components/DisassemblyViewer';
 import { AssemblyEditor } from './components/AssemblyEditor';
 import { FileFeatureAnalysis } from './components/FileFeatureAnalysis';
 import { LicensingInfo } from './components/LicensingInfo';
+import { AgentSystemScreen, MCPScreen, AuditTrailScreen } from './components/AgentSystemScreen';
 import { 
   Investigation, 
   saveInvestigation, 
@@ -25,7 +26,7 @@ import { analyzeBinary, isBinaryFile, BinaryAnalysisResult } from './utils/binar
 import { analyzeWithGhidra, GhidraAnalysisResult } from './utils/ghidraAnalyzer';
 import { generateReport, downloadReport, downloadFile } from './utils/reportGenerator';
 
-type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings' | 'licensing';
+type Screen = 'welcome' | 'ask' | 'investigation' | 'results' | 'history' | 'sandbox' | 'settings' | 'licensing' | 'agents' | 'mcp' | 'audit';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -169,7 +170,10 @@ export default function App() {
           {[
             { id: 'ask', label: 'New Analysis', icon: <Icons.Search /> },
             { id: 'history', label: 'History', icon: <Icons.History />, count: investigations.length },
+            { id: 'agents', label: 'Agents', icon: <Icons.Cpu /> },
             { id: 'sandbox', label: 'Sandbox', icon: <Icons.Shield /> },
+            { id: 'mcp', label: 'MCP Integration', icon: <Icons.Link /> },
+            { id: 'audit', label: 'Audit Trail', icon: <Icons.FileText /> },
             { id: 'settings', label: 'Settings', icon: <Icons.Settings /> },
             { id: 'licensing', label: 'Licensing', icon: <Icons.FileText /> },
           ].map((item) => (
@@ -242,6 +246,9 @@ export default function App() {
             <LicensingInfo />
           </div>
         )}
+        {screen === 'agents' && <AgentSystemScreen />}
+        {screen === 'mcp' && <MCPScreen />}
+        {screen === 'audit' && <AuditTrailScreen />}
       </main>
     </div>
   );
