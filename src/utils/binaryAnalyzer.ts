@@ -1,5 +1,5 @@
-// Binary file analysis engine
-import { Evidence, CodeSnippet, Risk } from './storage';
+// Binary file analysis engine - Complete implementation
+import { Evidence, Risk } from './storage';
 
 export interface BinaryAnalysisResult {
   fileType: string;
@@ -20,7 +20,6 @@ export interface ExtractedString {
   offset: number;
   length: number;
   encoding: 'ascii' | 'utf8' | 'utf16';
-  context?: string;
 }
 
 export interface BinarySection {
@@ -39,17 +38,17 @@ export async function analyzeBinary(
 ): Promise<BinaryAnalysisResult> {
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  const uint8Array = new Uint8Array(buffer);
-  const fileType = detectBinaryType(uint8Array);
-  const architecture = detectArchitecture(uint8Array);
-  const entropy = calculateEntropy(uint8Array);
-  const strings = extractStrings(uint8Array);
-  const sections = parseSections(uint8Array, fileType);
-  const imports = extractImports(uint8Array, fileType);
-  const exports = extractExports(uint8Array, fileType);
-  const hexDump = generateHexDump(uint8Array, 0, 512);
-  const signatures = detectSignatures(uint8Array);
-  const risks = assessBinaryRisks(uint8Array, entropy, strings);
+  const data = new Uint8Array(buffer);
+  const fileType = detectBinaryType(data);
+  const architecture = detectArchitecture(data);
+  const entropy = calculateEntropy(data);
+  const strings = extractStrings(data);
+  const sections = parseSections(data, fileType);
+  const imports = extractImports(data, strings);
+  const exports = extractExports(data, strings);
+  const hexDump = generateHexDump(data, 0, 512);
+  const signatures = detectSignatures(data);
+  const risks = assessBinaryRisks(entropy, strings);
   const evidence = generateBinaryEvidence(fileType, architecture, entropy, strings, sections);
 
   return {
@@ -67,48 +66,79 @@ export async function analyzeBinary(
   };
 }
 
-// Detect binary file type
+// Detect binary file type by magic bytes
 function detectBinaryType(data: Uint8Array): string {
-  // Check magic bytes
+  if (data.length < 4) return 'Unknown Binary';
+  
+  // PE Executable (Windows)
   if (data[0] === 0x4D && data[1] === 0x5A) return 'PE Executable (Windows)';
+  
+  // ELF Executable (Linux)
   if (data[0] === 0x7F && data[1] === 0x45 && data[2] === 0x4C && data[3] === 0x46) return 'ELF Executable (Linux)';
-  if (data[0] === 0xCA && data[1] === 0xFE && data[2] === 0xBA && data[3] === 0xBE) return 'Mach-O (macOS)';
+  
+  // Mach-O (macOS)
+  if (data[0] === 0xCA && data[1] === 0xFE && data[2] === 0xBA && data[3] === 0xBE) return 'Mach-O Universal (macOS)';
+  if (data[0] === 0xFE && data[1] === 0xED && data[2] === 0xFA && data[3] === 0xCE) return 'Mach-O 32-bit (macOS)';
+  if (data[0] === 0xFE && data[1] === 0xED && data[2] === 0xFA && data[3] === 0xCF) return 'Mach-O 64-bit (macOS)';
+  
+  // PDF Document
   if (data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46) return 'PDF Document';
+  
+  // ZIP Archive
   if (data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04) return 'ZIP Archive';
+  
+  // GZIP Archive
   if (data[0] === 0x1F && data[1] === 0x8B) return 'GZIP Archive';
+  
+  // JPEG Image
   if (data[0] === 0xFF && data[1] === 0xD8 && data[2] === 0xFF) return 'JPEG Image';
+  
+  // PNG Image
   if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) return 'PNG Image';
+  
+  // GIF Image
   if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return 'GIF Image';
   
   return 'Unknown Binary';
 }
 
-// Detect architecture
+// Detect CPU architecture
 function detectArchitecture(data: Uint8Array): string {
+  if (data.length < 6) return 'Unknown';
+  
+  // PE file
   if (data[0] === 0x4D && data[1] === 0x5A) {
-    // PE file - check PE header
     const peOffset = data[0x3C] | (data[0x3D] << 8) | (data[0x3E] << 16) | (data[0x3F] << 24);
-    if (peOffset < data.length - 4) {
+    if (peOffset < data.length - 6) {
       const machine = data[peOffset + 4] | (data[peOffset + 5] << 8);
       if (machine === 0x14C) return 'x86 (32-bit)';
       if (machine === 0x8664) return 'x64 (64-bit)';
-      if (machine === 0x1C0) return 'ARM';
-      if (machine === 0xAA64) return 'ARM64';
+      if (machine === 0x1C0) return 'ARM (32-bit)';
+      if (machine === 0xAA64) return 'ARM64 (64-bit)';
     }
   }
   
+  // ELF file
   if (data[0] === 0x7F && data[1] === 0x45 && data[2] === 0x4C && data[3] === 0x46) {
-    // ELF file
     const elfClass = data[4];
-    if (elfClass === 1) return 'x86 (32-bit)';
-    if (elfClass === 2) return 'x64 (64-bit)';
+    const elfMachine = data[18] | (data[19] << 8);
+    if (elfClass === 1) {
+      if (elfMachine === 0x03) return 'x86 (32-bit)';
+      if (elfMachine === 0x28) return 'ARM (32-bit)';
+    }
+    if (elfClass === 2) {
+      if (elfMachine === 0x3E) return 'x64 (64-bit)';
+      if (elfMachine === 0xB7) return 'ARM64 (64-bit)';
+    }
   }
   
   return 'Unknown';
 }
 
-// Calculate entropy (0-8, higher = more random/encrypted)
+// Calculate Shannon entropy (0-8 bits/byte)
 function calculateEntropy(data: Uint8Array): number {
+  if (data.length === 0) return 0;
+  
   const byteCounts = new Array(256).fill(0);
   for (let i = 0; i < data.length; i++) {
     byteCounts[data[i]]++;
@@ -126,7 +156,7 @@ function calculateEntropy(data: Uint8Array): number {
   return entropy;
 }
 
-// Extract printable strings
+// Extract printable ASCII strings
 function extractStrings(data: Uint8Array, minLength: number = 4): ExtractedString[] {
   const strings: ExtractedString[] = [];
   let currentString = '';
@@ -135,7 +165,7 @@ function extractStrings(data: Uint8Array, minLength: number = 4): ExtractedStrin
   for (let i = 0; i < data.length; i++) {
     const byte = data[i];
     
-    // Check if printable ASCII (32-126)
+    // Printable ASCII (32-126)
     if (byte >= 32 && byte <= 126) {
       if (currentString.length === 0) {
         startOffset = i;
@@ -154,7 +184,7 @@ function extractStrings(data: Uint8Array, minLength: number = 4): ExtractedStrin
     }
   }
   
-  // Don't forget the last string
+  // Last string
   if (currentString.length >= minLength) {
     strings.push({
       value: currentString,
@@ -164,86 +194,100 @@ function extractStrings(data: Uint8Array, minLength: number = 4): ExtractedStrin
     });
   }
   
-  return strings.slice(0, 100); // Limit to 100 strings
+  return strings.slice(0, 200); // Limit to 200 strings
 }
 
-// Parse binary sections
+// Parse binary sections (PE/ELF)
 function parseSections(data: Uint8Array, fileType: string): BinarySection[] {
   const sections: BinarySection[] = [];
   
-  if (fileType.includes('PE')) {
-    // Parse PE sections
-    const peOffset = data[0x3C] | (data[0x3D] << 8) | (data[0x3E] << 16) | (data[0x3F] << 24);
-    if (peOffset < data.length - 24) {
-      const numSections = data[peOffset + 6] | (data[peOffset + 7] << 8);
-      const optionalHeaderSize = data[peOffset + 20] | (data[peOffset + 21] << 8);
-      const sectionTableOffset = peOffset + 24 + optionalHeaderSize;
-      
-      for (let i = 0; i < numSections && sectionTableOffset + (i * 40) < data.length; i++) {
-        const offset = sectionTableOffset + (i * 40);
-        const name = String.fromCharCode(...data.slice(offset, offset + 8)).replace(/\0/g, '');
-        const virtualSize = data[offset + 8] | (data[offset + 9] << 8) | (data[offset + 10] << 16) | (data[offset + 11] << 24);
-        const virtualAddress = data[offset + 12] | (data[offset + 13] << 8) | (data[offset + 14] << 16) | (data[offset + 15] << 24);
-        const rawSize = data[offset + 16] | (data[offset + 17] << 8) | (data[offset + 18] << 16) | (data[offset + 19] << 24);
-        const rawOffset = data[offset + 20] | (data[offset + 21] << 8) | (data[offset + 22] << 16) | (data[offset + 23] << 24);
+  if (fileType.includes('PE') && data.length > 0x100) {
+    try {
+      const peOffset = data[0x3C] | (data[0x3D] << 8) | (data[0x3E] << 16) | (data[0x3F] << 24);
+      if (peOffset < data.length - 24) {
+        const numSections = data[peOffset + 6] | (data[peOffset + 7] << 8);
+        const optionalHeaderSize = data[peOffset + 20] | (data[peOffset + 21] << 8);
+        const sectionTableOffset = peOffset + 24 + optionalHeaderSize;
         
-        sections.push({
-          name,
-          offset: rawOffset,
-          size: rawSize,
-          virtualAddress,
-          virtualSize,
-          characteristics: ['READ', 'WRITE', 'EXECUTE'].filter(() => Math.random() > 0.5),
-        });
+        for (let i = 0; i < numSections && sectionTableOffset + (i * 40) + 40 <= data.length; i++) {
+          const offset = sectionTableOffset + (i * 40);
+          const name = String.fromCharCode(...Array.from(data.slice(offset, offset + 8))).replace(/\0/g, '');
+          const virtualSize = data[offset + 8] | (data[offset + 9] << 8) | (data[offset + 10] << 16) | (data[offset + 11] << 24);
+          const virtualAddress = data[offset + 12] | (data[offset + 13] << 8) | (data[offset + 14] << 16) | (data[offset + 15] << 24);
+          const rawSize = data[offset + 16] | (data[offset + 17] << 8) | (data[offset + 18] << 16) | (data[offset + 19] << 24);
+          const rawOffset = data[offset + 20] | (data[offset + 21] << 8) | (data[offset + 22] << 16) | (data[offset + 23] << 24);
+          const characteristics = data[offset + 36] | (data[offset + 37] << 8) | (data[offset + 38] << 16) | (data[offset + 39] << 24);
+          
+          const chars: string[] = [];
+          if (characteristics & 0x20) chars.push('CODE');
+          if (characteristics & 0x40) chars.push('INITIALIZED_DATA');
+          if (characteristics & 0x80) chars.push('UNINITIALIZED_DATA');
+          if (characteristics & 0x20000000) chars.push('EXECUTABLE');
+          if (characteristics & 0x40000000) chars.push('READABLE');
+          if (characteristics & 0x80000000) chars.push('WRITABLE');
+          
+          sections.push({
+            name,
+            offset: rawOffset,
+            size: rawSize,
+            virtualAddress,
+            virtualSize,
+            characteristics: chars,
+          });
+        }
       }
+    } catch (e) {
+      // Ignore parsing errors
     }
   }
   
   return sections;
 }
 
-// Extract imports
-function extractImports(data: Uint8Array, fileType: string): string[] {
+// Extract imports from strings
+function extractImports(data: Uint8Array, strings: ExtractedString[]): string[] {
   const imports: string[] = [];
-  const strings = extractStrings(data, 3);
   
-  // Look for common DLL/library names
   const patterns = [
     /\.dll$/i,
-    /\.so$/i,
+    /\.so(\.\d+)?$/i,
     /\.dylib$/i,
     /kernel32/i,
     /user32/i,
     /advapi32/i,
     /ws2_32/i,
+    /ntdll/i,
+    /msvcrt/i,
     /libc/i,
     /libstdc/i,
+    /libpthread/i,
   ];
   
   strings.forEach(str => {
     patterns.forEach(pattern => {
-      if (pattern.test(str.value)) {
+      if (pattern.test(str.value) && !imports.includes(str.value)) {
         imports.push(str.value);
       }
     });
   });
   
-  return [...new Set(imports)].slice(0, 20);
+  return imports.slice(0, 30);
 }
 
-// Extract exports
-function extractExports(data: Uint8Array, fileType: string): string[] {
+// Extract exports from strings
+function extractExports(data: Uint8Array, strings: ExtractedString[]): string[] {
   const exports: string[] = [];
-  const strings = extractStrings(data, 4);
   
-  // Look for function-like names
   strings.forEach(str => {
-    if (/^[A-Z][a-zA-Z0-9_]+$/.test(str.value) && str.value.length > 4) {
-      exports.push(str.value);
+    // Look for function-like names (camelCase or PascalCase)
+    if (/^[A-Z][a-zA-Z0-9_]{3,}$/.test(str.value) || /^[a-z][a-zA-Z0-9_]{3,}$/.test(str.value)) {
+      if (!exports.includes(str.value)) {
+        exports.push(str.value);
+      }
     }
   });
   
-  return [...new Set(exports)].slice(0, 20);
+  return exports.slice(0, 30);
 }
 
 // Generate hex dump
@@ -271,29 +315,36 @@ function generateHexDump(data: Uint8Array, offset: number, length: number): stri
   return lines.join('\n');
 }
 
-// Detect file signatures
+// Detect suspicious patterns
 function detectSignatures(data: Uint8Array): string[] {
   const signatures: string[] = [];
   
-  // Check for common patterns
   if (findPattern(data, 'http://') || findPattern(data, 'https://')) {
     signatures.push('URL references detected');
   }
   
-  if (findPattern(data, 'password') || findPattern(data, 'secret') || findPattern(data, 'key')) {
+  if (findPattern(data, 'password') || findPattern(data, 'passwd') || findPattern(data, 'secret')) {
     signatures.push('Potential credentials detected');
   }
   
-  if (findPattern(data, 'eval(') || findPattern(data, 'exec(')) {
+  if (findPattern(data, 'eval(') || findPattern(data, 'exec(') || findPattern(data, 'system(')) {
     signatures.push('Code execution patterns detected');
   }
   
-  if (findPattern(data, 'registry') || findPattern(data, 'Registry')) {
+  if (findPattern(data, 'registry') || findPattern(data, 'RegOpenKey') || findPattern(data, 'RegSetValue')) {
     signatures.push('Windows registry access detected');
   }
   
-  if (findPattern(data, 'socket') || findPattern(data, 'connect')) {
+  if (findPattern(data, 'socket') || findPattern(data, 'connect') || findPattern(data, 'send') || findPattern(data, 'recv')) {
     signatures.push('Network communication detected');
+  }
+  
+  if (findPattern(data, 'CreateProcess') || findPattern(data, 'WinExec') || findPattern(data, 'ShellExecute')) {
+    signatures.push('Process creation capability detected');
+  }
+  
+  if (findPattern(data, 'VirtualAlloc') || findPattern(data, 'WriteProcessMemory')) {
+    signatures.push('Memory manipulation detected');
   }
   
   return signatures;
@@ -318,10 +369,10 @@ function findPattern(data: Uint8Array, pattern: string): boolean {
 }
 
 // Assess binary risks
-function assessBinaryRisks(data: Uint8Array, entropy: number, strings: ExtractedString[]): Risk[] {
+function assessBinaryRisks(entropy: number, strings: ExtractedString[]): Risk[] {
   const risks: Risk[] = [];
   
-  // High entropy might indicate packing/encryption
+  // High entropy
   if (entropy > 7.5) {
     risks.push({
       level: 'high',
@@ -330,13 +381,14 @@ function assessBinaryRisks(data: Uint8Array, entropy: number, strings: Extracted
     });
   }
   
-  // Check for suspicious strings
+  // Suspicious strings
   const suspiciousPatterns = [
     { pattern: /password|passwd|pwd/i, risk: 'Credentials detected in binary' },
     { pattern: /key|secret|token/i, risk: 'Potential secrets or keys found' },
     { pattern: /cmd\.exe|powershell|bash/i, risk: 'Shell execution capability detected' },
     { pattern: /registry|regedit/i, risk: 'Registry modification capability' },
     { pattern: /download|upload|fetch/i, risk: 'Network communication capability' },
+    { pattern: /createprocess|winexec/i, risk: 'Process creation capability' },
   ];
   
   suspiciousPatterns.forEach(({ pattern, risk }) => {
@@ -416,7 +468,6 @@ function generateBinaryEvidence(
 
 // Check if file is binary
 export function isBinaryFile(data: Uint8Array): boolean {
-  // Check for null bytes (common in binary files)
   let nullCount = 0;
   const sampleSize = Math.min(data.length, 1000);
   
@@ -424,6 +475,5 @@ export function isBinaryFile(data: Uint8Array): boolean {
     if (data[i] === 0) nullCount++;
   }
   
-  // If more than 10% null bytes, likely binary
   return nullCount / sampleSize > 0.1;
 }
