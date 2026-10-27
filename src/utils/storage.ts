@@ -46,6 +46,16 @@ export interface Risk {
   mitigation: string;
 }
 
+export interface AnalysisResult {
+  summary: string;
+  confidence: number;
+  evidence: Evidence[];
+  steps: string[];
+  codeSnippets: CodeSnippet[];
+  recommendations: string[];
+  risks: Risk[];
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   autoApproveReads: boolean;
