@@ -7,7 +7,7 @@ interface ExecutionResult {
   logs: string[];
 }
 
-export function SandboxEnvironment({ targetPath }: { targetPath: string }) {
+export function SandboxEnvironment({ targetPath, onRunningChange }: { targetPath: string; onRunningChange?: (running: boolean) => void }) {
   const [code, setCode] = useState(`// Example: Safe code execution in sandbox
 function analyze(data) {
   console.log('Analyzing:', data);
@@ -25,6 +25,11 @@ return result;`);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Notify parent when running state changes
+  useEffect(() => {
+    onRunningChange?.(isRunning);
+  }, [isRunning, onRunningChange]);
 
   const executeCode = () => {
     setIsRunning(true);

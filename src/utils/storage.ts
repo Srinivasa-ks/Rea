@@ -26,6 +26,20 @@ export interface InvestigationResult {
   codeSnippets: CodeSnippet[];
   recommendations: string[];
   risks: Risk[];
+  fileInfo?: {
+    type: string;
+    mime: string;
+    extension: string;
+    hashes: {
+      md5: string;
+      sha1: string;
+      sha256: string;
+      sha512: string;
+    };
+    entropy: number;
+    packers: string[];
+    stringCount: number;
+  };
 }
 
 export interface Evidence {
