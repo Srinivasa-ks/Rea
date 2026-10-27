@@ -36,6 +36,27 @@ REA Agentic AI is a local-first platform where a team of AI agents reverse engin
 
 The application is automatically deployed to GitHub Pages from the `main` branch.
 
+## 🪟 Windows Desktop App
+
+Download the native Windows desktop application:
+
+**👉 [Download for Windows](https://github.com/Srinivasa-ks/Rea-Agenti-AI/releases)**
+
+### Build Your Own Windows App
+
+```bash
+# Install dependencies
+npm install
+
+# Build Windows installer
+npm run electron:build:win
+
+# Or use the one-click build script
+build-windows.bat
+```
+
+See [README_WINDOWS.md](README_WINDOWS.md) for detailed instructions.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
