@@ -1,12 +1,21 @@
 import { useState } from 'react';
 
+interface Phase4Config {
+  licenseType: 'mit' | 'apache' | 'gpl' | 'proprietary';
+  stabilityChecks: string[];
+  buildConfig: string;
+  outputFormat: 'exe' | 'dll' | 'lib' | 'source';
+}
+
 interface Phase4AssemblyProps {
   fixes: any;
   onComplete: (assemblyResult: any) => void;
+  config: Phase4Config;
+  onConfigChange: (config: Phase4Config) => void;
 }
 
-export function Phase4Assembly({ fixes, onComplete }: Phase4AssemblyProps) {
-  const [licenseType, setLicenseType] = useState<'mit' | 'apache' | 'gpl' | 'proprietary'>('mit');
+export function Phase4Assembly({ fixes, onComplete, config, onConfigChange }: Phase4AssemblyProps) {
+  const [licenseType, setLicenseType] = useState<'mit' | 'apache' | 'gpl' | 'proprietary'>(config.licenseType);
   const [assemblyProgress, setAssemblyProgress] = useState(0);
   const [stabilityChecks, setStabilityChecks] = useState({
     compilation: false,
@@ -14,6 +23,7 @@ export function Phase4Assembly({ fixes, onComplete }: Phase4AssemblyProps) {
     security: false,
     performance: false,
   });
+  const [showConfig, setShowConfig] = useState(false);
 
   const handleAssemble = async () => {
     // Simulate assembly process
@@ -73,13 +83,104 @@ export function Phase4Assembly({ fixes, onComplete }: Phase4AssemblyProps) {
   return (
     <div className="max-w-7xl mx-auto py-8 px-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Phase 4: Assembly & Licensing
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Phase 4: Assembly & Licensing
+          </h2>
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {showConfig ? 'Hide' : 'Show'} Configuration
+          </button>
+        </div>
         <p className="text-gray-600 dark:text-gray-400">
           Assemble modified code, apply license, ensure stability, and prepare for deployment
         </p>
       </div>
+
+      {/* Configuration Panel */}
+      {showConfig && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">⚙️ Phase 4 Configuration</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* License & Build */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                License Type
+              </label>
+              <select
+                value={config.licenseType}
+                onChange={(e) => {
+                  const newLicense = e.target.value as any;
+                  setLicenseType(newLicense);
+                  onConfigChange({ ...config, licenseType: newLicense });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="mit">MIT License</option>
+                <option value="apache">Apache 2.0</option>
+                <option value="gpl">GNU GPL v3</option>
+                <option value="proprietary">Proprietary</option>
+              </select>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                Build Configuration
+              </label>
+              <select
+                value={config.buildConfig}
+                onChange={(e) => onConfigChange({ ...config, buildConfig: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="debug">Debug (with symbols)</option>
+                <option value="release">Release (optimized)</option>
+                <option value="production">Production (minified)</option>
+              </select>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                Output Format
+              </label>
+              <select
+                value={config.outputFormat}
+                onChange={(e) => onConfigChange({ ...config, outputFormat: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="exe">Executable (.exe)</option>
+                <option value="dll">Dynamic Library (.dll)</option>
+                <option value="lib">Static Library (.lib)</option>
+                <option value="source">Source Code Only</option>
+              </select>
+            </div>
+
+            {/* Stability Checks */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Stability Checks to Run
+              </label>
+              <div className="space-y-2">
+                {['compilation', 'tests', 'security', 'performance', 'compatibility', 'memory'].map(check => (
+                  <label key={check} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.stabilityChecks.includes(check)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onConfigChange({ ...config, stabilityChecks: [...config.stabilityChecks, check] });
+                        } else {
+                          onConfigChange({ ...config, stabilityChecks: config.stabilityChecks.filter(c => c !== check) });
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600 rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{check}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assembly Progress */}
       {assemblyProgress > 0 && (

@@ -1,15 +1,25 @@
 import { useState } from 'react';
 
+interface Phase3Config {
+  autoFixSeverity: 'all' | 'high' | 'medium' | 'low';
+  customTemplates: string[];
+  validationRules: string[];
+  enableRollback: boolean;
+}
+
 interface Phase3FixingProps {
   decodingResult: any;
   onComplete: (fixes: any) => void;
+  config: Phase3Config;
+  onConfigChange: (config: Phase3Config) => void;
 }
 
-export function Phase3Fixing({ decodingResult, onComplete }: Phase3FixingProps) {
+export function Phase3Fixing({ decodingResult, onComplete, config, onConfigChange }: Phase3FixingProps) {
   const [selectedFixes, setSelectedFixes] = useState<number[]>([]);
   const [customFixes, setCustomFixes] = useState<string[]>([]);
   const [newFeature, setNewFeature] = useState('');
   const [fixingProgress, setFixingProgress] = useState(0);
+  const [showConfig, setShowConfig] = useState(false);
 
   const toggleFix = (id: number) => {
     setSelectedFixes(prev => 
@@ -45,13 +55,111 @@ export function Phase3Fixing({ decodingResult, onComplete }: Phase3FixingProps) 
   return (
     <div className="max-w-7xl mx-auto py-8 px-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Phase 3: Fixing & Modification
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Phase 3: Fixing & Modification
+          </h2>
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {showConfig ? 'Hide' : 'Show'} Configuration
+          </button>
+        </div>
         <p className="text-gray-600 dark:text-gray-400">
           Add, remove, modify, or update features based on analysis
         </p>
       </div>
+
+      {/* Configuration Panel */}
+      {showConfig && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">⚙️ Phase 3 Configuration</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Auto-fix Settings */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Auto-fix Severity Threshold
+              </label>
+              <select
+                value={config.autoFixSeverity}
+                onChange={(e) => onConfigChange({ ...config, autoFixSeverity: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="all">Fix all vulnerabilities</option>
+                <option value="high">High severity only</option>
+                <option value="medium">Medium and high</option>
+                <option value="low">Low, medium, and high</option>
+              </select>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                Validation Rules
+              </label>
+              <div className="space-y-2">
+                {['syntax', 'security', 'performance', 'compatibility'].map(rule => (
+                  <label key={rule} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.validationRules.includes(rule)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onConfigChange({ ...config, validationRules: [...config.validationRules, rule] });
+                        } else {
+                          onConfigChange({ ...config, validationRules: config.validationRules.filter(r => r !== rule) });
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600 rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{rule}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Advanced Options */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={config.enableRollback}
+                  onChange={(e) => onConfigChange({ ...config, enableRollback: e.target.checked })}
+                  className="w-4 h-4 text-indigo-600 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enable rollback capability</span>
+              </label>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Custom Fix Templates
+              </label>
+              <div className="space-y-2 mb-2">
+                {config.customTemplates.map((template, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{template}</span>
+                    <button
+                      onClick={() => onConfigChange({ ...config, customTemplates: config.customTemplates.filter((_, idx) => idx !== i) })}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const template = prompt('Enter custom fix template:');
+                  if (template) {
+                    onConfigChange({ ...config, customTemplates: [...config.customTemplates, template] });
+                  }
+                }}
+                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded transition-colors"
+              >
+                + Add Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fixing Progress */}
       {fixingProgress > 0 && (

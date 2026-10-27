@@ -1,15 +1,25 @@
 import { useState } from 'react';
 
+interface Phase5Config {
+  reportSections: string[];
+  exportFormats: string[];
+  detailLevel: 'summary' | 'detailed' | 'comprehensive';
+  includeAuditTrail: boolean;
+}
+
 interface Phase5SummaryProps {
   analysisResult: any;
   decodingResult: any;
   fixes: any;
   assemblyResult: any;
   fileName: string;
+  config: Phase5Config;
+  onConfigChange: (config: Phase5Config) => void;
 }
 
-export function Phase5Summary({ analysisResult, decodingResult, fixes, assemblyResult, fileName }: Phase5SummaryProps) {
+export function Phase5Summary({ analysisResult, decodingResult, fixes, assemblyResult, fileName, config, onConfigChange }: Phase5SummaryProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>('overview');
+  const [showConfig, setShowConfig] = useState(false);
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -180,13 +190,105 @@ The reverse engineering process has been completed successfully. All phases exec
   return (
     <div className="max-w-7xl mx-auto py-8 px-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Phase 5: Comprehensive Summary
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Phase 5: Comprehensive Summary
+          </h2>
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {showConfig ? 'Hide' : 'Show'} Configuration
+          </button>
+        </div>
         <p className="text-gray-600 dark:text-gray-400">
           Complete overview of the reverse engineering process for {fileName}
         </p>
       </div>
+
+      {/* Configuration Panel */}
+      {showConfig && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">⚙️ Phase 5 Configuration</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Report Sections */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Report Sections to Include
+              </label>
+              <div className="space-y-2">
+                {['overview', 'analysis', 'decoding', 'fixing', 'assembly', 'recommendations', 'appendix'].map(section => (
+                  <label key={section} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.reportSections.includes(section)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onConfigChange({ ...config, reportSections: [...config.reportSections, section] });
+                        } else {
+                          onConfigChange({ ...config, reportSections: config.reportSections.filter(s => s !== section) });
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600 rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{section}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Export & Detail Options */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Export Formats
+              </label>
+              <div className="space-y-2 mb-4">
+                {['html', 'json', 'md', 'pdf'].map(format => (
+                  <label key={format} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.exportFormats.includes(format)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onConfigChange({ ...config, exportFormats: [...config.exportFormats, format] });
+                        } else {
+                          onConfigChange({ ...config, exportFormats: config.exportFormats.filter(f => f !== format) });
+                        }
+                      }}
+                      className="w-4 h-4 text-indigo-600 rounded"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 uppercase">{format}</span>
+                  </label>
+                ))}
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Detail Level
+              </label>
+              <select
+                value={config.detailLevel}
+                onChange={(e) => onConfigChange({ ...config, detailLevel: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white mb-4"
+              >
+                <option value="summary">Summary (Brief overview)</option>
+                <option value="detailed">Detailed (Standard report)</option>
+                <option value="comprehensive">Comprehensive (Full documentation)</option>
+              </select>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.includeAuditTrail}
+                  onChange={(e) => onConfigChange({ ...config, includeAuditTrail: e.target.checked })}
+                  className="w-4 h-4 text-indigo-600 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include audit trail</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export Buttons */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">

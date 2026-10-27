@@ -6,7 +6,47 @@ import { Phase3Fixing } from './components/Phase3Fixing';
 import { Phase4Assembly } from './components/Phase4Assembly';
 import { Phase5Summary } from './components/Phase5Summary';
 
+type Screen = 'upload' | 'phase1' | 'phase2' | 'phase3' | 'phase4' | 'phase5' | 'history' | 'sandbox' | 'settings';
 type WorkflowPhase = 'upload' | 'analysis' | 'decoding' | 'fixing' | 'assembly' | 'summary';
+
+// Customization interfaces for each phase
+interface Phase1Config {
+  selectedAgents: string[];
+  analysisDepth: 'quick' | 'standard' | 'deep';
+  focusAreas: string[];
+  fileTypeOverride: string;
+}
+
+interface Phase2Config {
+  showDisassembly: boolean;
+  showFeatures: boolean;
+  showFlaws: boolean;
+  showStrengths: boolean;
+  showAttributes: boolean;
+  disassemblyArch: 'x86' | 'x64' | 'arm' | 'auto';
+  analysisDepth: 'basic' | 'detailed' | 'comprehensive';
+}
+
+interface Phase3Config {
+  autoFixSeverity: 'all' | 'high' | 'medium' | 'low';
+  customTemplates: string[];
+  validationRules: string[];
+  enableRollback: boolean;
+}
+
+interface Phase4Config {
+  licenseType: 'mit' | 'apache' | 'gpl' | 'proprietary';
+  stabilityChecks: string[];
+  buildConfig: string;
+  outputFormat: 'exe' | 'dll' | 'lib' | 'source';
+}
+
+interface Phase5Config {
+  reportSections: string[];
+  exportFormats: string[];
+  detailLevel: 'summary' | 'detailed' | 'comprehensive';
+  includeAuditTrail: boolean;
+}
 
 interface AnalysisResult {
   fileName: string;
@@ -26,6 +66,7 @@ interface AnalysisResult {
 }
 
 export default function App() {
+  const [screen, setScreen] = useState<Screen>('upload');
   const [currentPhase, setCurrentPhase] = useState<WorkflowPhase>('upload');
   const [fileData, setFileData] = useState<{
     fileName: string;
@@ -37,6 +78,45 @@ export default function App() {
   const [decodingResult, setDecodingResult] = useState<any>(null);
   const [fixes, setFixes] = useState<any>(null);
   const [assemblyResult, setAssemblyResult] = useState<any>(null);
+  
+  // Customization states for each phase
+  const [phase1Config, setPhase1Config] = useState<Phase1Config>({
+    selectedAgents: ['all'],
+    analysisDepth: 'standard',
+    focusAreas: ['security', 'functionality'],
+    fileTypeOverride: '',
+  });
+  
+  const [phase2Config, setPhase2Config] = useState<Phase2Config>({
+    showDisassembly: true,
+    showFeatures: true,
+    showFlaws: true,
+    showStrengths: true,
+    showAttributes: true,
+    disassemblyArch: 'auto',
+    analysisDepth: 'detailed',
+  });
+  
+  const [phase3Config, setPhase3Config] = useState<Phase3Config>({
+    autoFixSeverity: 'high',
+    customTemplates: [],
+    validationRules: ['syntax', 'security'],
+    enableRollback: true,
+  });
+  
+  const [phase4Config, setPhase4Config] = useState<Phase4Config>({
+    licenseType: 'mit',
+    stabilityChecks: ['compilation', 'tests', 'security', 'performance'],
+    buildConfig: 'release',
+    outputFormat: 'exe',
+  });
+  
+  const [phase5Config, setPhase5Config] = useState<Phase5Config>({
+    reportSections: ['overview', 'analysis', 'decoding', 'fixing', 'assembly'],
+    exportFormats: ['html', 'json'],
+    detailLevel: 'detailed',
+    includeAuditTrail: true,
+  });
 
   const handleFileUpload = (file: File, question: string) => {
     setFileData({
@@ -46,30 +126,36 @@ export default function App() {
       question,
     });
     setCurrentPhase('analysis');
+    setScreen('phase1');
   };
 
   const handleAnalysisComplete = (result: any) => {
     setAnalysisResult(result);
     setCurrentPhase('decoding');
+    setScreen('phase2');
   };
 
   const handleDecodingComplete = (result: any) => {
     setDecodingResult(result);
     setCurrentPhase('fixing');
+    setScreen('phase3');
   };
 
   const handleFixingComplete = (result: any) => {
     setFixes(result);
     setCurrentPhase('assembly');
+    setScreen('phase4');
   };
 
   const handleAssemblyComplete = (result: any) => {
     setAssemblyResult(result);
     setCurrentPhase('summary');
+    setScreen('phase5');
   };
 
   const handleStartNew = () => {
     setCurrentPhase('upload');
+    setScreen('upload');
     setFileData(null);
     setAnalysisResult(null);
     setDecodingResult(null);
@@ -77,129 +163,172 @@ export default function App() {
     setAssemblyResult(null);
   };
 
+  // Navigate to a specific phase
+  const navigateToPhase = (phase: Screen) => {
+    setScreen(phase);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                <Icons.Cpu />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">REA Agentic AI</h1>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Reverse Engineer Anything</p>
-              </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
+              <Icons.Cpu />
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Online</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Ghidra MCP</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Sandbox</span>
-              </div>
+            <div>
+              <div className="font-bold text-gray-900 dark:text-white text-sm">REA Agentic AI</div>
+              <div className="text-xs text-gray-500">v3.0.0</div>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Phase Indicator */}
-      {currentPhase !== 'upload' && (
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {[
-                  { id: 'analysis', label: '1. Analysis', icon: '🔍' },
-                  { id: 'decoding', label: '2. Decoding', icon: '🔬' },
-                  { id: 'fixing', label: '3. Fixing', icon: '🔧' },
-                  { id: 'assembly', label: '4. Assembly', icon: '🔨' },
-                  { id: 'summary', label: '5. Summary', icon: '📊' },
-                ].map((phase, index) => {
-                  const phaseOrder = ['analysis', 'decoding', 'fixing', 'assembly', 'summary'];
-                  const currentIndex = phaseOrder.indexOf(currentPhase);
-                  const phaseIndex = phaseOrder.indexOf(phase.id);
-                  const isActive = phase.id === currentPhase;
-                  const isCompleted = phaseIndex < currentIndex;
+        <nav className="flex-1 p-2 overflow-y-auto">
+          {/* Workflow Phases */}
+          <div className="mb-4">
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+              Workflow Phases
+            </div>
+            {[
+              { id: 'upload', label: 'New Analysis', icon: '📁', screen: 'upload' as Screen },
+              { id: 'phase1', label: '1. Analysis', icon: '🔍', screen: 'phase1' as Screen },
+              { id: 'phase2', label: '2. Decoding', icon: '🔬', screen: 'phase2' as Screen },
+              { id: 'phase3', label: '3. Fixing', icon: '🔧', screen: 'phase3' as Screen },
+              { id: 'phase4', label: '4. Assembly', icon: '🔨', screen: 'phase4' as Screen },
+              { id: 'phase5', label: '5. Summary', icon: '📊', screen: 'phase5' as Screen },
+            ].map((item) => {
+              const isDisabled = item.screen !== 'upload' && !fileData;
+              const isCompleted = item.screen === 'phase1' && analysisResult ||
+                                 item.screen === 'phase2' && decodingResult ||
+                                 item.screen === 'phase3' && fixes ||
+                                 item.screen === 'phase4' && assemblyResult;
+              
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => !isDisabled && navigateToPhase(item.screen)}
+                  disabled={isDisabled}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1 ${
+                    screen === item.screen
+                      ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                      : isDisabled
+                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {isCompleted && <span className="text-green-500">✓</span>}
+                </button>
+              );
+            })}
+          </div>
 
-                  return (
-                    <div key={phase.id} className="flex items-center">
-                      <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
-                        isActive ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' :
-                        isCompleted ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                        'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                      }`}>
-                        <span>{phase.icon}</span>
-                        <span className="text-sm font-medium">{phase.label}</span>
-                        {isCompleted && <span>✓</span>}
-                      </div>
-                      {index < 4 && (
-                        <div className={`w-8 h-0.5 mx-2 ${
-                          phaseIndex < currentIndex ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                        }`} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Other Pages */}
+          <div>
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+              Other
+            </div>
+            {[
+              { id: 'history', label: 'History', icon: <Icons.History />, screen: 'history' as Screen },
+              { id: 'sandbox', label: 'Sandbox', icon: <Icons.Shield />, screen: 'sandbox' as Screen },
+              { id: 'settings', label: 'Settings', icon: <Icons.Settings />, screen: 'settings' as Screen },
+            ].map((item) => (
               <button
-                onClick={handleStartNew}
-                className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                key={item.id}
+                onClick={() => navigateToPhase(item.screen)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1 ${
+                  screen === item.screen
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                }`}
               >
-                Start New Analysis
+                {item.icon}
+                <span className="flex-1 text-left">{item.label}</span>
               </button>
-            </div>
+            ))}
           </div>
+        </nav>
+
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleStartNew}
+            className="w-full px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+          >
+            Start New Analysis
+          </button>
         </div>
-      )}
+      </aside>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {currentPhase === 'upload' && (
+      <main className="flex-1 overflow-y-auto">
+        {screen === 'upload' && (
           <UploadScreen onUpload={handleFileUpload} />
         )}
-        {currentPhase === 'analysis' && fileData && (
+        {screen === 'phase1' && fileData && (
           <Phase1Analysis
             fileName={fileData.fileName}
             fileType={fileData.fileType}
             fileSize={fileData.fileSize}
             question={fileData.question}
             onComplete={handleAnalysisComplete}
+            config={phase1Config}
+            onConfigChange={setPhase1Config}
           />
         )}
-        {currentPhase === 'decoding' && analysisResult && (
+        {screen === 'phase2' && analysisResult && (
           <Phase2Decoding
             analysisResult={analysisResult}
             onComplete={handleDecodingComplete}
+            config={phase2Config}
+            onConfigChange={setPhase2Config}
           />
         )}
-        {currentPhase === 'fixing' && decodingResult && (
+        {screen === 'phase3' && decodingResult && (
           <Phase3Fixing
             decodingResult={decodingResult}
             onComplete={handleFixingComplete}
+            config={phase3Config}
+            onConfigChange={setPhase3Config}
           />
         )}
-        {currentPhase === 'assembly' && fixes && (
+        {screen === 'phase4' && fixes && (
           <Phase4Assembly
             fixes={fixes}
             onComplete={handleAssemblyComplete}
+            config={phase4Config}
+            onConfigChange={setPhase4Config}
           />
         )}
-        {currentPhase === 'summary' && analysisResult && decodingResult && fixes && assemblyResult && fileData && (
+        {screen === 'phase5' && analysisResult && decodingResult && fixes && assemblyResult && fileData && (
           <Phase5Summary
             analysisResult={analysisResult}
             decodingResult={decodingResult}
             fixes={fixes}
             assemblyResult={assemblyResult}
             fileName={fileData.fileName}
+            config={phase5Config}
+            onConfigChange={setPhase5Config}
           />
+        )}
+        {screen === 'history' && (
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">History</h2>
+            <p className="text-gray-600 dark:text-gray-400">History page content goes here...</p>
+          </div>
+        )}
+        {screen === 'sandbox' && (
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Sandbox</h2>
+            <p className="text-gray-600 dark:text-gray-400">Sandbox page content goes here...</p>
+          </div>
+        )}
+        {screen === 'settings' && (
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Settings</h2>
+            <p className="text-gray-600 dark:text-gray-400">Settings page content goes here...</p>
+          </div>
         )}
       </main>
     </div>

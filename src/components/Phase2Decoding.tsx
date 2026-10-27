@@ -2,14 +2,27 @@ import { useState } from 'react';
 import { DisassemblyViewer } from './DisassemblyViewer';
 import { FileFeatureAnalysis } from './FileFeatureAnalysis';
 
+interface Phase2Config {
+  showDisassembly: boolean;
+  showFeatures: boolean;
+  showFlaws: boolean;
+  showStrengths: boolean;
+  showAttributes: boolean;
+  disassemblyArch: 'x86' | 'x64' | 'arm' | 'auto';
+  analysisDepth: 'basic' | 'detailed' | 'comprehensive';
+}
+
 interface Phase2DecodingProps {
   analysisResult: any;
   onComplete: (decodingResult: any) => void;
+  config: Phase2Config;
+  onConfigChange: (config: Phase2Config) => void;
 }
 
-export function Phase2Decoding({ analysisResult, onComplete }: Phase2DecodingProps) {
+export function Phase2Decoding({ analysisResult, onComplete, config, onConfigChange }: Phase2DecodingProps) {
   const [activeTab, setActiveTab] = useState<'disassembly' | 'features' | 'flaws' | 'strengths' | 'attributes'>('disassembly');
   const [decodingProgress, setDecodingProgress] = useState(0);
+  const [showConfig, setShowConfig] = useState(false);
 
   // Simulate decoding progress
   useState(() => {
@@ -23,6 +36,10 @@ export function Phase2Decoding({ analysisResult, onComplete }: Phase2DecodingPro
       });
     }, 100);
   });
+
+  const toggleTab = (tab: keyof typeof config, show: boolean) => {
+    onConfigChange({ ...config, [tab]: show });
+  };
 
   // Mock disassembly lines
   const disassemblyLines = [
@@ -131,13 +148,114 @@ export function Phase2Decoding({ analysisResult, onComplete }: Phase2DecodingPro
   return (
     <div className="max-w-7xl mx-auto py-8 px-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Phase 2: Decoding & Analysis
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Phase 2: Decoding & Analysis
+          </h2>
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {showConfig ? 'Hide' : 'Show'} Configuration
+          </button>
+        </div>
         <p className="text-gray-600 dark:text-gray-400">
           Deep analysis of {analysisResult.fileName} - Disassembly, Features, Flaws, Strengths & Attributes
         </p>
       </div>
+
+      {/* Configuration Panel */}
+      {showConfig && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">⚙️ Phase 2 Configuration</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Tab Visibility */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Show/Hide Analysis Tabs
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.showDisassembly}
+                    onChange={(e) => toggleTab('showDisassembly', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">💻 Disassembly</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.showFeatures}
+                    onChange={(e) => toggleTab('showFeatures', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">⚙️ Features</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.showFlaws}
+                    onChange={(e) => toggleTab('showFlaws', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">⚠️ Flaws & Vulnerabilities</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.showStrengths}
+                    onChange={(e) => toggleTab('showStrengths', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">✅ Strengths</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.showAttributes}
+                    onChange={(e) => toggleTab('showAttributes', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">📊 Attributes</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Analysis Options */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Disassembly Architecture
+              </label>
+              <select
+                value={config.disassemblyArch}
+                onChange={(e) => onConfigChange({ ...config, disassemblyArch: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="auto">Auto-detect</option>
+                <option value="x86">x86 (32-bit)</option>
+                <option value="x64">x64 (64-bit)</option>
+                <option value="arm">ARM</option>
+              </select>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">
+                Analysis Depth
+              </label>
+              <select
+                value={config.analysisDepth}
+                onChange={(e) => onConfigChange({ ...config, analysisDepth: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              >
+                <option value="basic">Basic (Fast overview)</option>
+                <option value="detailed">Detailed (Standard analysis)</option>
+                <option value="comprehensive">Comprehensive (Deep dive)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Decoding Progress */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
