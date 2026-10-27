@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REA Agentic AI — Reverse Engineer Anything</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .dark { background-color: #111827 !important; color: #f9fafb; }
+    .light { background-color: #f9fafb !important; color: #111827; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
+    code, pre { font-family: 'Courier New', monospace; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="light">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Icons
+    const Icons = {
+      Home: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+      Search: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
+      Settings: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+      Shield: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+      Terminal: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+      Cpu: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>,
+      FileText: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+      Bell: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
+      Link: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>,
+      Play: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      Check: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
+      AlertTriangle: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+      History: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    };
+
+    // Sample Data
+    const sampleInvestigation = {
+      id: 'inv-2026-001',
+      question: 'How does search work in this app?',
+      target: { name: 'sample-app.js', type: 'js-bundle', path: '/targets/sample-app.js', hash: 'sha256:a3f8c2...e91d', size: 245760 },
+      status: 'explaining',
+      createdAt: '2026-01-15T10:30:00Z',
+      updatedAt: '2026-01-15T10:47:23Z',
+      authorizationConfirmed: true,
+      tags: ['search', 'web-app', 'javascript'],
+      agents: [
+        { id: 'agent-orch', role: 'orchestrator', status: 'active', budget: { maxCalls: 50, callsUsed: 23, maxTime: 600, timeUsed: 340 }, toolAllowList: ['delegate', 'plan', 'reconcile'], lastAction: 'Delegating to Explainer agent' },
+        { id: 'agent-triage', role: 'triage', status: 'done', budget: { maxCalls: 20, callsUsed: 8, maxTime: 120, timeUsed: 45 }, toolAllowList: ['file-stat', 'mime-detect'], lastAction: 'Classified target as JS bundle' },
+        { id: 'agent-webjs', role: 'web-js', status: 'done', budget: { maxCalls: 100, callsUsed: 67, maxTime: 300, timeUsed: 189 }, toolAllowList: ['ast-parse', 'string-search'], lastAction: 'Mapped search pipeline' },
+        { id: 'agent-evidence', role: 'evidence-curator', status: 'active', budget: { maxCalls: 30, callsUsed: 12, maxTime: 120, timeUsed: 60 }, toolAllowList: ['record-evidence'], lastAction: 'Recording evidence E7' },
+        { id: 'agent-explainer', role: 'explainer', status: 'active', budget: { maxCalls: 20, callsUsed: 5, maxTime: 180, timeUsed: 90 }, toolAllowList: ['synthesize'], lastAction: 'Generating final explanation' },
+      ],
+      events: [
+        { id: 'evt-1', timestamp: '2026-01-15T10:30:01Z', agent: 'triage', action: 'classify_target', detail: 'Target identified: JavaScript bundle (240KB)' },
+        { id: 'evt-2', timestamp: '2026-01-15T10:30:15Z', agent: 'policy-safety', action: 'risk_assess', detail: 'Risk class: static-read. Auto-approved.' },
+        { id: 'evt-3', timestamp: '2026-01-15T10:30:20Z', agent: 'orchestrator', action: 'create_plan', detail: 'Plan: 5 phases, estimated 12 minutes' },
+        { id: 'evt-4', timestamp: '2026-01-15T10:31:00Z', agent: 'web-js', action: 'source_map_resolve', detail: 'Resolved 847 original source files', evidenceIds: ['E1'] },
+        { id: 'evt-5', timestamp: '2026-01-15T10:34:00Z', agent: 'web-js', action: 'call_graph', detail: 'Traced: SearchInput → useDebounce → searchAPI', evidenceIds: ['E3', 'E4'] },
+      ],
+      evidence: [
+        { id: 'E1', type: 'source-excerpt', source: 'src/components/SearchInput.tsx:14-28', tool: 'source-map-resolve', timestamp: '2026-01-15T10:31:00Z', hash: 'sha256:b2c4d1...', caption: 'Search input component with debounce', excerpt: 'const [query, setQuery] = useState("");\nconst debouncedQuery = useDebounce(query, 300);', confidence: 'confirmed' },
+        { id: 'E2', type: 'string-match', source: 'src/utils/search.ts:1-45', tool: 'string-search', timestamp: '2026-01-15T10:32:30Z', hash: 'sha256:c3d5e2...', caption: 'Search utility module', excerpt: 'export async function searchAPI(query: string) {\n  const response = await fetch(`/api/v2/search?q=${query}`);\n  return response.json();\n}', confidence: 'confirmed' },
+        { id: 'E3', type: 'call-graph', source: 'src/components/SearchResults.tsx', tool: 'call-graph', timestamp: '2026-01-15T10:34:00Z', hash: 'sha256:d4e6f3...', caption: 'Call graph showing search pipeline', confidence: 'confirmed' },
+      ],
+      answer: {
+        summary: 'The search feature uses a dual-path architecture: user input is debounced (300ms), then sent to a server API endpoint. If the API fails, it falls back to client-side fuzzy matching using Fuse.js.',
+        steps: ['User types in search input', 'Input debounced (300ms)', 'searchAPI() called', 'API: GET /api/v2/search?q={query}', 'Results rendered reactively'],
+        evidenceRefs: ['E1', 'E2', 'E3'],
+        confidence: 'high',
+        openQuestions: ['Server-side algorithm not analyzed', 'Rate limiting not observed'],
+      },
+    };
+
+    const historyItems = [
+      { id: 'inv-2026-001', question: 'How does search work in this app?', target: 'sample-app.js', status: 'explaining', date: '2026-01-15', tags: ['search', 'web-app'] },
+      { id: 'inv-2026-002', question: 'What authentication mechanism is used?', target: 'auth-service.exe', status: 'archived', date: '2026-01-14', tags: ['auth', 'native'] },
+      { id: 'inv-2026-003', question: 'How are user preferences stored?', target: 'desktop-app.electron', status: 'archived', date: '2026-01-12', tags: ['storage', 'electron'] },
+    ];
+
+    const setupItems = [
+      { name: 'Node.js', status: 'present', version: '20.11.0', required: true, description: 'JavaScript runtime' },
+      { name: 'REA Agents', status: 'present', version: '1.4.2', required: true, description: 'Core agent library' },
+      { name: 'Ghidra', status: 'missing', required: false, description: 'Native binary analysis (optional)', size: '~500MB' },
+      { name: 'SQLite', status: 'present', version: '3.44.0', required: true, description: 'History database' },
+    ];
+
+    // Utility Components
+    function Badge({ children, variant = 'default' }) {
+      const colors = {
+        default: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        success: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+        warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+        error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+        purple: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+      };
+      return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors[variant]}`}>{children}</span>;
+    }
+
+    function Card({ children, className = '' }) {
+      return <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>{children}</div>;
+    }
+
+    // Welcome Screen
+    function WelcomeScreen({ onStart }) {
+      return (
+        <div className="max-w-4xl mx-auto py-12 px-6">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white mb-6 shadow-lg">
+              <Icons.Cpu />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">REA Agentic AI</h1>
+            <p className="text-xl text-gray-600 dark:text-gray-400">Reverse Engineer Anything — Locally, Safely, With Evidence</p>
+          </div>
+          <Card className="p-6 mb-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">
+            <div className="flex items-start gap-3">
+              <Icons.AlertTriangle />
+              <div>
+                <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-1">Legal & Ethical Notice</h3>
+                <p className="text-sm text-amber-800 dark:text-amber-400">This tool is for authorized analysis only. You must own or have permission to analyze any target.</p>
+              </div>
+            </div>
+          </Card>
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
+            <Card className="p-5">
+              <div className="text-indigo-500 mb-3"><Icons.Terminal /></div>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">CLI</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Command line interface</p>
+            </Card>
+            <Card className="p-5">
+              <div className="text-indigo-500 mb-3"><Icons.Link /></div>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">MCP Server</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Model Context Protocol</p>
+            </Card>
+            <Card className="p-5">
+              <div className="text-indigo-500 mb-3"><Icons.Shield /></div>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Desktop App</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Windows application</p>
+            </Card>
+          </div>
+          <div className="text-center">
+            <button onClick={onStart} className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-lg transition-colors">
+              <Icons.Play /> Start Investigation
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Ask Screen
+    function AskScreen({ onInvestigate }) {
+      return (
+        <div className="max-w-4xl mx-auto py-8 px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ask a Question</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Describe what you want to understand about a target.</p>
+          <Card className="p-6 mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Question</label>
+            <textarea placeholder="e.g., How does search work in this app?" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white" rows={3} />
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-4">Target File</label>
+            <input type="text" placeholder="/path/to/target.js" className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
+          </Card>
+          <Card className="p-6 mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Authorization</h3>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="mt-1 w-4 h-4 text-indigo-600 rounded" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">I confirm that I own this target or have authorization to analyze it.</span>
+            </label>
+          </Card>
+          <button onClick={onInvestigate} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow transition-colors">Start Investigation</button>
+        </div>
+      );
+    }
+
+    // Investigation Screen
+    function InvestigationScreen({ investigation, onViewResult }) {
+      const statusColors = { idle: 'bg-gray-400', active: 'bg-emerald-500 animate-pulse', done: 'bg-blue-500', error: 'bg-red-500' };
+      return (
+        <div className="max-w-7xl mx-auto py-8 px-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Live Investigation</h2>
+              <p className="text-gray-600 dark:text-gray-400">{investigation.question}</p>
+            </div>
+            <button onClick={onViewResult} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">View Results</button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Agents</h3>
+              <div className="space-y-2">
+                {investigation.agents.map((agent) => (
+                  <div key={agent.id} className="p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">{agent.role.replace('-', ' ')}</span>
+                      <div className={`w-2.5 h-2.5 rounded-full ${statusColors[agent.status]}`} />
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">{agent.lastAction || 'Waiting...'}</div>
+                    <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                      <div className="bg-indigo-500 h-1 rounded-full" style={{ width: `${(agent.budget.callsUsed / agent.budget.maxCalls) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card className="p-4 lg:col-span-2">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Event Timeline</h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {investigation.events.slice().reverse().map((event) => (
+                  <div key={event.id} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                    <div className="flex-shrink-0 w-16 text-xs text-gray-400 font-mono">{new Date(event.timestamp).toLocaleTimeString('en-US', { hour12: false })}</div>
+                    <Badge variant={event.agent === 'orchestrator' ? 'purple' : 'info'}>{event.agent}</Badge>
+                    <div className="flex-1">
+                      <div className="text-sm text-gray-900 dark:text-white font-medium">{event.action.replace(/_/g, ' ')}</div>
+                      <div className="text-xs text-gray-500">{event.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // Result Screen
+    function ResultScreen({ investigation }) {
+      const answer = investigation.answer;
+      return (
+        <div className="max-w-5xl mx-auto py-8 px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Investigation Result</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{investigation.question}</p>
+          <Card className="p-4 mb-6 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10">
+            <div className="flex items-center gap-3">
+              <Badge variant="success">{answer.confidence}</Badge>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Confidence: 87% • {answer.evidenceRefs.length} evidence records</span>
+            </div>
+          </Card>
+          <Card className="p-6 mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Summary</h3>
+            <p className="text-gray-700 dark:text-gray-300">{answer.summary}</p>
+          </Card>
+          <Card className="p-6 mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Steps</h3>
+            <ol className="space-y-2">
+              {answer.steps.map((step, i) => (
+                <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">{i + 1}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </Card>
+          <Card className="p-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Evidence</h3>
+            <div className="space-y-3">
+              {investigation.evidence.map((ev) => (
+                <div key={ev.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{ev.id}</span>
+                    <Badge variant={ev.confidence === 'confirmed' ? 'success' : 'info'}>{ev.confidence}</Badge>
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">{ev.caption}</div>
+                  {ev.excerpt && <pre className="mt-2 bg-gray-50 dark:bg-gray-900 rounded p-2 text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">{ev.excerpt}</pre>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // History Screen
+    function HistoryScreen() {
+      return (
+        <div className="max-w-4xl mx-auto py-8 px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">History</h2>
+          <Card>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {historyItems.map((item) => (
+                <div key={item.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-gray-900 dark:text-white">{item.question}</span>
+                    <Badge variant={item.status === 'archived' ? 'success' : 'info'}>{item.status}</Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                    <span>{item.target}</span>
+                    <span>•</span>
+                    <span>{item.date}</span>
+                  </div>
+                  <div className="flex gap-1 mt-2">
+                    {item.tags.map(tag => <span key={tag} className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">{tag}</span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Setup Screen
+    function SetupScreen() {
+      return (
+        <div className="max-w-4xl mx-auto py-8 px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Setup & Health</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">System requirements and tool availability.</p>
+          <Card>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {setupItems.map((item) => (
+                <div key={item.name} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${item.status === 'present' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">{item.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{item.description}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {item.version && <span className="text-sm text-gray-500 dark:text-gray-400">v{item.version}</span>}
+                    <Badge variant={item.status === 'present' ? 'success' : 'error'}>{item.status}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Sandbox Environment
+    function SandboxEnvironment() {
+      const [status, setStatus] = useState('idle');
+      const [cpu, setCpu] = useState(0);
+      const [memory, setMemory] = useState(0);
+      const [logs, setLogs] = useState([]);
+
+      useEffect(() => {
+        if (status !== 'running') return;
+        const interval = setInterval(() => {
+          setCpu(prev => Math.max(0, Math.min(95, prev + (Math.random() - 0.5) * 15)));
+          setMemory(prev => Math.max(32, Math.min(256, prev + (Math.random() - 0.4) * 8)));
+          if (Math.random() > 0.3) {
+            setLogs(prev => [...prev, { timestamp: Date.now(), level: 'info', source: 'syscall', message: 'File read: /sandbox/target/app.js' }].slice(-50));
+          }
+        }, 1000);
+        return () => clearInterval(interval);
+      }, [status]);
+
+      const start = () => {
+        setStatus('running');
+        setCpu(0);
+        setMemory(0);
+        setLogs([{ timestamp: Date.now(), level: 'info', source: 'system', message: 'Sandbox started' }]);
+      };
+
+      return (
+        <div className="max-w-7xl mx-auto py-8 px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Sandbox Environment</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Isolated execution environment</p>
+          <div className={`p-4 rounded-lg mb-6 ${status === 'running' ? 'bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${status === 'running' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+              <span className="font-semibold text-gray-900 dark:text-white capitalize">{status}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="p-5"><div className="text-sm text-gray-600 dark:text-gray-400 mb-1">CPU</div><div className="text-2xl font-bold text-blue-600">{cpu.toFixed(1)}%</div></Card>
+            <Card className="p-5"><div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Memory</div><div className="text-2xl font-bold text-purple-600">{memory.toFixed(0)} MB</div></Card>
+            <Card className="p-5"><div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Network In</div><div className="text-2xl font-bold text-emerald-600">0 KB</div></Card>
+            <Card className="p-5"><div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Network Out</div><div className="text-2xl font-bold text-orange-600">0 KB</div></Card>
+          </div>
+          <div className="flex gap-2 mb-6">
+            {status === 'idle' && <button onClick={start} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">Start Sandbox</button>}
+            {status === 'running' && <button onClick={() => setStatus('idle')} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">Stop</button>}
+          </div>
+          <Card className="p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Logs</h3>
+            <div className="max-h-64 overflow-y-auto font-mono text-xs bg-gray-900 rounded p-3">
+              {logs.length === 0 ? <div className="text-gray-500">No logs yet</div> : logs.map((log, i) => (
+                <div key={i} className="flex gap-3 py-0.5">
+                  <span className="text-gray-500">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                  <span className="text-emerald-400">INF</span>
+                  <span className="text-indigo-400">[{log.source}]</span>
+                  <span className="text-gray-300">{log.message}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Main App
+    function App() {
+      const [screen, setScreen] = useState('welcome');
+      const [darkMode, setDarkMode] = useState(false);
+      const [investigation] = useState(sampleInvestigation);
+
+      useEffect(() => {
+        document.documentElement.className = darkMode ? 'dark' : 'light';
+      }, [darkMode]);
+
+      const navItems = [
+        { id: 'welcome', label: 'Home', icon: <Icons.Home /> },
+        { id: 'ask', label: 'Ask', icon: <Icons.Search /> },
+        { id: 'investigation', label: 'Investigation', icon: <Icons.Play /> },
+        { id: 'sandbox', label: 'Sandbox', icon: <Icons.Shield /> },
+        { id: 'result', label: 'Results', icon: <Icons.FileText /> },
+        { id: 'history', label: 'History', icon: <Icons.History /> },
+        { id: 'setup', label: 'Setup', icon: <Icons.Settings /> },
+      ];
+
+      const renderScreen = () => {
+        switch (screen) {
+          case 'welcome': return <WelcomeScreen onStart={() => setScreen('ask')} />;
+          case 'ask': return <AskScreen onInvestigate={() => setScreen('investigation')} />;
+          case 'investigation': return <InvestigationScreen investigation={investigation} onViewResult={() => setScreen('result')} />;
+          case 'result': return <ResultScreen investigation={investigation} />;
+          case 'sandbox': return <SandboxEnvironment />;
+          case 'history': return <HistoryScreen />;
+          case 'setup': return <SetupScreen />;
+          default: return <WelcomeScreen onStart={() => setScreen('ask')} />;
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+          <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white"><Icons.Cpu /></div>
+                <div>
+                  <div className="font-bold text-gray-900 dark:text-white text-sm">REA Agentic AI</div>
+                  <div className="text-xs text-gray-500">v1.0.0</div>
+                </div>
+              </div>
+            </div>
+            <nav className="flex-1 p-2">
+              {navItems.map((item) => (
+                <button key={item.id} onClick={() => setScreen(item.id)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-0.5 ${screen === item.id ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
+                  {item.icon} {item.label}
+                </button>
+              ))}
+            </nav>
+            <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">Theme</span>
+                <button onClick={() => setDarkMode(!darkMode)} className={`w-10 h-5 rounded-full transition-colors ${darkMode ? 'bg-indigo-600' : 'bg-gray-300'} relative`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          </aside>
+          <main className="flex-1 overflow-y-auto">{renderScreen()}</main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
