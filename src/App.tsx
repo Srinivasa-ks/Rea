@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Icons } from './components/Icons';
-import { Phase1Analysis } from './components/Phase1Analysis';
-import { Phase2Decoding } from './components/Phase2Decoding';
-import { Phase3Fixing } from './components/Phase3Fixing';
-import { Phase4Assembly } from './components/Phase4Assembly';
-import { Phase5Summary } from './components/Phase5Summary';
+import { Phase1Page } from './pages/Phase1Page';
+import { Phase2Page } from './pages/Phase2Page';
+import { Phase3Page } from './pages/Phase3Page';
+import { Phase4Page } from './pages/Phase4Page';
+import { Phase5Page } from './pages/Phase5Page';
 
-type Screen = 'upload' | 'phase1' | 'phase2' | 'phase3' | 'phase4' | 'phase5' | 'history' | 'sandbox' | 'settings';
+export type Screen = 'upload' | 'phase1' | 'phase2' | 'phase3' | 'phase4' | 'phase5' | 'history' | 'sandbox' | 'settings';
+
+// Dedicated page components for each phase
 type WorkflowPhase = 'upload' | 'analysis' | 'decoding' | 'fixing' | 'assembly' | 'summary';
 
 // Customization interfaces for each phase
@@ -266,51 +268,20 @@ export default function App() {
         {screen === 'upload' && (
           <UploadScreen onUpload={handleFileUpload} />
         )}
-        {screen === 'phase1' && fileData && (
-          <Phase1Analysis
-            fileName={fileData.fileName}
-            fileType={fileData.fileType}
-            fileSize={fileData.fileSize}
-            question={fileData.question}
-            onComplete={handleAnalysisComplete}
-            config={phase1Config}
-            onConfigChange={setPhase1Config}
-          />
+        {screen === 'phase1' && (
+          <Phase1Page onNavigate={navigateToPhase} />
         )}
-        {screen === 'phase2' && analysisResult && (
-          <Phase2Decoding
-            analysisResult={analysisResult}
-            onComplete={handleDecodingComplete}
-            config={phase2Config}
-            onConfigChange={setPhase2Config}
-          />
+        {screen === 'phase2' && (
+          <Phase2Page onNavigate={navigateToPhase} />
         )}
-        {screen === 'phase3' && decodingResult && (
-          <Phase3Fixing
-            decodingResult={decodingResult}
-            onComplete={handleFixingComplete}
-            config={phase3Config}
-            onConfigChange={setPhase3Config}
-          />
+        {screen === 'phase3' && (
+          <Phase3Page onNavigate={navigateToPhase} />
         )}
-        {screen === 'phase4' && fixes && (
-          <Phase4Assembly
-            fixes={fixes}
-            onComplete={handleAssemblyComplete}
-            config={phase4Config}
-            onConfigChange={setPhase4Config}
-          />
+        {screen === 'phase4' && (
+          <Phase4Page onNavigate={navigateToPhase} />
         )}
-        {screen === 'phase5' && analysisResult && decodingResult && fixes && assemblyResult && fileData && (
-          <Phase5Summary
-            analysisResult={analysisResult}
-            decodingResult={decodingResult}
-            fixes={fixes}
-            assemblyResult={assemblyResult}
-            fileName={fileData.fileName}
-            config={phase5Config}
-            onConfigChange={setPhase5Config}
-          />
+        {screen === 'phase5' && (
+          <Phase5Page onNavigate={navigateToPhase} />
         )}
         {screen === 'history' && (
           <div className="max-w-7xl mx-auto px-6 py-8">
