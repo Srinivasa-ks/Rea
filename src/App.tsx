@@ -118,16 +118,64 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 
 // ─── Setup Screen ────────────────────────────────────────────────────────────
 function SetupScreen() {
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<string | null>(null);
+
+  const handleRunDoctor = () => {
+    setRunning(true);
+    setResults(null);
+    setTimeout(() => {
+      setRunning(false);
+      setResults('✓ Node.js 20.11.0\n✓ REA Agents 1.4.2\n✓ SQLite 3.44.0\n⚠ Ghidra (missing - optional)\n⚠ JDK 17+ (missing - optional)\n\nAll required components are present. Optional tools can be installed for extended functionality.');
+    }, 1500);
+  };
+
+  const handleDryRun = () => {
+    alert('Dry Run: This would check for all dependencies without installing anything.\n\nRequired: Node.js, REA Agents, SQLite\nOptional: Ghidra, JDK 17+, Playwright');
+  };
+
+  const handleRerunSetup = () => {
+    if (confirm('This will re-run the setup process. Continue?')) {
+      handleRunDoctor();
+    }
+  };
+
+  const handleInstall = (itemName: string) => {
+    alert(`Installation of ${itemName} would start now.\n\nIn the full application, this would:\n1. Download the package\n2. Verify checksum\n3. Install to user directory\n4. Verify installation`);
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Setup & Health</h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">System requirements and tool availability. Run <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded text-sm">rea-agent doctor</code> for diagnostics.</p>
 
       <div className="flex gap-3 mb-6">
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">Run Doctor</button>
-        <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Dry Run</button>
-        <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Rerun Setup</button>
+        <button 
+          onClick={handleRunDoctor}
+          disabled={running}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {running ? 'Running...' : 'Run Doctor'}
+        </button>
+        <button 
+          onClick={handleDryRun}
+          className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          Dry Run
+        </button>
+        <button 
+          onClick={handleRerunSetup}
+          className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          Rerun Setup
+        </button>
       </div>
+
+      {results && (
+        <Card className="p-4 mb-6 bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800">
+          <pre className="text-sm text-emerald-800 dark:text-emerald-300 whitespace-pre-wrap font-mono">{results}</pre>
+        </Card>
+      )}
 
       <Card>
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -146,7 +194,10 @@ function SetupScreen() {
                   {item.status}
                 </Badge>
                 {item.status === 'missing' && item.installCommand && (
-                  <button className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors">
+                  <button 
+                    onClick={() => handleInstall(item.name)}
+                    className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                  >
                     Install
                   </button>
                 )}
@@ -173,6 +224,39 @@ function SetupScreen() {
 function AskScreen({ onInvestigate }: { onInvestigate: () => void }) {
   const [question, setQuestion] = useState('');
   const [targetPath, setTargetPath] = useState('');
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [authorized, setAuthorized] = useState(true);
+  const [showFileInput, setShowFileInput] = useState(false);
+
+  const handleBrowse = () => {
+    // Simulate file browser - in real app this would use Electron's dialog
+    const mockFiles = [
+      '/targets/sample-app.js',
+      '/targets/auth-service.exe',
+      '/targets/desktop-app.electron',
+      '/targets/dashboard.js',
+      '/targets/vault.bin'
+    ];
+    const randomFile = mockFiles[Math.floor(Math.random() * mockFiles.length)];
+    setTargetPath(randomFile);
+    setShowFileInput(false);
+  };
+
+  const handleTypeSelect = (type: string) => {
+    setSelectedType(selectedType === type ? null : type);
+  };
+
+  const handleDryRun = () => {
+    alert(`Dry Run Preview:\n\nQuestion: ${question || '(not specified)'}\nTarget: ${targetPath || '(not specified)'}\nType: ${selectedType || '(auto-detect)'}\n\nPlan would be generated based on target analysis.`);
+  };
+
+  const handleStartInvestigation = () => {
+    if (!authorized) {
+      alert('Please confirm authorization before starting investigation.');
+      return;
+    }
+    onInvestigate();
+  };
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
@@ -198,7 +282,10 @@ function AskScreen({ onInvestigate }: { onInvestigate: () => void }) {
             placeholder="/path/to/target.js or /path/to/app/"
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
-          <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+          <button 
+            onClick={handleBrowse}
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
             Browse
           </button>
         </div>
@@ -206,7 +293,15 @@ function AskScreen({ onInvestigate }: { onInvestigate: () => void }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="text-sm text-gray-500 dark:text-gray-400">Target type:</span>
           {['Web App', 'JS Bundle', 'Electron', 'Native Binary'].map(t => (
-            <button key={t} className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-full text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+            <button 
+              key={t}
+              onClick={() => handleTypeSelect(t)}
+              className={`px-3 py-1 text-xs border rounded-full transition-colors ${
+                selectedType === t
+                  ? 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-500 text-indigo-700 dark:text-indigo-400'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700'
+              }`}
+            >
               {t}
             </button>
           ))}
@@ -216,7 +311,12 @@ function AskScreen({ onInvestigate }: { onInvestigate: () => void }) {
       <Card className="p-6 mb-6">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Authorization</h3>
         <label className="flex items-start gap-3 cursor-pointer">
-          <input type="checkbox" defaultChecked className="mt-1 w-4 h-4 text-indigo-600 rounded border-gray-300 dark:border-gray-600" />
+          <input 
+            type="checkbox" 
+            checked={authorized}
+            onChange={(e) => setAuthorized(e.target.checked)}
+            className="mt-1 w-4 h-4 text-indigo-600 rounded border-gray-300 dark:border-gray-600" 
+          />
           <span className="text-sm text-gray-700 dark:text-gray-300">
             I confirm that I own this target or have explicit authorization to analyze it. I understand that REA Agentic AI is for legitimate reverse engineering purposes only.
           </span>
@@ -224,10 +324,16 @@ function AskScreen({ onInvestigate }: { onInvestigate: () => void }) {
       </Card>
 
       <div className="flex gap-3">
-        <button onClick={onInvestigate} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow transition-colors">
+        <button 
+          onClick={handleStartInvestigation}
+          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow transition-colors"
+        >
           Start Investigation
         </button>
-        <button className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+        <button 
+          onClick={handleDryRun}
+          className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
           Dry Run (Preview Plan)
         </button>
       </div>
@@ -362,7 +468,10 @@ function ResultScreen({ investigation }: { investigation: Investigation }) {
           <p className="text-gray-600 dark:text-gray-400">{investigation.question}</p>
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1">
+          <button 
+            onClick={() => alert('Export would generate:\n\n• Markdown report\n• JSON data\n• HTML viewable report\n• ZIP archive with all evidence')}
+            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
+          >
             <Icons.Download /> Export
           </button>
         </div>
@@ -478,7 +587,14 @@ function ResultScreen({ investigation }: { investigation: Investigation }) {
             {answer.reproduceCommands.map((cmd, i) => (
               <div key={i} className="bg-gray-900 dark:bg-black rounded-lg p-3 font-mono text-sm text-green-400 flex items-center justify-between">
                 <code>{cmd}</code>
-                <button className="text-gray-400 hover:text-white transition-colors ml-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(cmd);
+                    alert('Command copied to clipboard!');
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors ml-2"
+                  title="Copy to clipboard"
+                >
                   <Icons.Download />
                 </button>
               </div>
@@ -492,13 +608,41 @@ function ResultScreen({ investigation }: { investigation: Investigation }) {
 
 // ─── History Screen ──────────────────────────────────────────────────────────
 function HistoryScreen() {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredItems = historyItems.filter(item => 
+    item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.target.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleExportAll = () => {
+    const data = JSON.stringify(historyItems, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rea-investigations-history.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">History</h2>
         <div className="flex gap-2">
-          <input type="text" placeholder="Search investigations..." className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400" />
-          <button className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <input 
+            type="text" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search investigations..." 
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400" 
+          />
+          <button 
+            onClick={handleExportAll}
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
             Export All
           </button>
         </div>
@@ -506,7 +650,7 @@ function HistoryScreen() {
 
       <Card>
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
-          {historyItems.map((item) => (
+          {filteredItems.map((item) => (
             <div key={item.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer">
               <div className="flex items-center justify-between mb-1">
                 <span className="font-medium text-gray-900 dark:text-white">{item.question}</span>
@@ -717,7 +861,23 @@ function MCPScreen() {
         <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">Client Configuration</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {['Claude Desktop', 'Codex', 'Cursor', 'VS Code'].map(client => (
-            <button key={client} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <button 
+              key={client}
+              onClick={() => {
+                const config = `{
+  "mcpServers": {
+    "rea-agent": {
+      "command": "rea-agent",
+      "args": ["serve", "--mcp"],
+      "env": {}
+    }
+  }
+}`;
+                navigator.clipboard.writeText(config);
+                alert(`${client} configuration copied to clipboard!\n\nPaste it into your ${client} settings.`);
+              }}
+              className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
               {client}
               <div className="text-xs text-gray-400 mt-1">Copy config</div>
             </button>
@@ -730,24 +890,38 @@ function MCPScreen() {
 
 // ─── Approvals Screen ────────────────────────────────────────────────────────
 function ApprovalsScreen() {
-  const pendingApprovals = [
+  const [approvals, setApprovals] = useState([
     { id: 'appr-1', agent: 'web-js', action: 'Run in sandbox', detail: 'Execute sample-app.js in isolated sandbox to observe runtime behavior', risk: 'sandbox', target: 'sample-app.js' },
     { id: 'appr-2', agent: 'setup-doctor', action: 'Install Ghidra', detail: 'Download and install Ghidra 12.1.4 (~500MB) from official NSA mirror', risk: 'install', target: 'system' },
-  ];
+  ]);
+
+  const handleApprove = (id: string) => {
+    setApprovals(prev => prev.filter(a => a.id !== id));
+    alert('Action approved! The agent will proceed.');
+  };
+
+  const handleDeny = (id: string) => {
+    setApprovals(prev => prev.filter(a => a.id !== id));
+    alert('Action denied. The agent will find an alternative approach.');
+  };
+
+  const handleViewDetails = (appr: any) => {
+    alert(`Details for: ${appr.action}\n\nAgent: ${appr.agent}\nRisk Class: ${appr.risk}\nTarget: ${appr.target}\n\n${appr.detail}\n\nThis action requires explicit approval before execution.`);
+  };
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Approvals Inbox</h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">Review and approve actions that require human oversight.</p>
 
-      {pendingApprovals.length === 0 ? (
+      {approvals.length === 0 ? (
         <Card className="p-8 text-center">
           <div className="text-emerald-500 mb-2"><Icons.Check /></div>
           <p className="text-gray-600 dark:text-gray-400">No pending approvals. All clear!</p>
         </Card>
       ) : (
         <div className="space-y-4">
-          {pendingApprovals.map((appr) => (
+          {approvals.map((appr) => (
             <Card key={appr.id} className="p-5 border-amber-200 dark:border-amber-800">
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -760,13 +934,22 @@ function ApprovalsScreen() {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{appr.detail}</p>
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+                <button 
+                  onClick={() => handleApprove(appr.id)}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                >
                   Approve
                 </button>
-                <button className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                <button 
+                  onClick={() => handleDeny(appr.id)}
+                  className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                >
                   Deny
                 </button>
-                <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                <button 
+                  onClick={() => handleViewDetails(appr)}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
                   View Details
                 </button>
               </div>

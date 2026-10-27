@@ -483,7 +483,7 @@ export function SandboxEnvironment({ targetPath }: { targetPath: string }) {
       {activeTab === 'filesystem' && <FileSystemTab items={fileSystem} />}
       {activeTab === 'network' && <NetworkTab connections={connections} totalIn={totalNetIn} totalOut={totalNetOut} status={status} config={config} />}
       {activeTab === 'security' && <SecurityTab events={securityEvents} config={config} />}
-      {activeTab === 'logs' && <LogsTab logs={logs} logEndRef={logEndRef} />}
+      {activeTab === 'logs' && <LogsTab logs={logs} logEndRef={logEndRef} onClear={() => setLogs([])} />}
     </div>
   );
 }
@@ -780,16 +780,31 @@ function SecurityTab({ events, config }: { events: SecurityEvent[]; config: Sand
   );
 }
 
-function LogsTab({ logs, logEndRef }: { logs: SandboxLog[]; logEndRef: React.RefObject<HTMLDivElement> }) {
+function LogsTab({ logs, logEndRef, onClear }: { logs: SandboxLog[]; logEndRef: React.RefObject<HTMLDivElement>; onClear: () => void }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-white">Execution Logs ({logs.length})</h3>
         <div className="flex gap-2">
-          <button className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <button 
+            onClick={() => {
+              const data = logs.map(l => `[${new Date(l.timestamp).toISOString()}] [${l.level.toUpperCase()}] [${l.source}] ${l.message}`).join('\n');
+              const blob = new Blob([data], { type: 'text/plain' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `sandbox-logs-${Date.now()}.txt`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
             Export
           </button>
-          <button className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <button 
+            onClick={onClear}
+            className="px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
             Clear
           </button>
         </div>
